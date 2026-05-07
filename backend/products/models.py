@@ -42,7 +42,7 @@ class Product(models.Model):
             self.unique_code = uuid.uuid4().hex[:12].upper()
         super().save(*args, **kwargs)
         if is_new and not self.qr_code:
-            product_url = f"http://localhost:5173/products/{self.unique_code}"
+            product_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/products/{self.unique_code}"
             qr_image = qrcode.make(product_url)
             buffer = BytesIO()
             qr_image.save(buffer, format="PNG")
@@ -56,7 +56,7 @@ class Product(models.Model):
     @property
     def qr_code_url(self):
         if self.qr_code:
-            return f"http://localhost:8000{settings.MEDIA_URL}{self.qr_code.name}"
+            return f"{settings.BACKEND_BASE_URL.rstrip('/')}{settings.MEDIA_URL}{self.qr_code.name}"
         return ""
 
     def __str__(self):

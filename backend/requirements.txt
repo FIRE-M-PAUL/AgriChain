@@ -1,0 +1,6 @@
+Django
+djangorestframework
+django-cors-headers
+qrcode[pil]
+pynacl
+base58

@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -70,6 +71,10 @@ WSGI_APPLICATION = "farmtrace_backend.wsgi.application"
 ASGI_APPLICATION = "farmtrace_backend.asgi.application"
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+is_render_environment = bool(os.getenv("RENDER"))
+if not DEBUG and SECRET_KEY == "dev-secret-key-change-in-production" and (is_render_environment or DATABASE_URL):
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set for production deployments.")
+
 if DATABASE_URL:
     DATABASES = {
         "default": dj_database_url.parse(

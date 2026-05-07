@@ -4,7 +4,7 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: ./build.sh
-    startCommand: gunicorn farmtrace_backend.wsgi:application
+    startCommand: gunicorn farmtrace_backend.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -40,7 +40,7 @@ services:
   - type: static_site
     name: agrichain-frontend
     rootDir: frontend
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
       - key: NODE_VERSION

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import QRCode from "react-qr-code";
 import toast from "react-hot-toast";
-import { Mic, QrCode, Download, Share2 } from "lucide-react";
+import { Mic, QrCode as QrCodeIcon, Download, Share2 } from "lucide-react";
 import { generateProductId, listProducts, saveProductRecord } from "../services/mvpProducts";
 import { getFarmerProfile, saveFarmerProfile } from "../services/mvpFarmers";
 import { getElevenLabsPlaceholderConfig, startVoiceCapture } from "../services/voiceInput";
@@ -12,6 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import { getStoredWalletAddress, setStoredWalletAddress } from "../services/walletSession";
 import { formatNrcInput, isValidNrc } from "../utils/nrc";
 import { mapSupabaseErrorForUser } from "../utils/supabaseErrors";
+import { ReactQRCode, canRenderReactQRCode } from "../lib/reactQrCode";
 
 function getPhantomProvider() {
   if (typeof window === "undefined") return null;
@@ -389,7 +389,7 @@ export default function MvpFarmerPage() {
                 {isRecording ? "Listening..." : "Voice Input"}
               </button>
               <button type="submit" disabled={isSubmitting} className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-emerald-400 disabled:opacity-70">
-                <QrCode className="h-4 w-4" />
+                <QrCodeIcon className="h-4 w-4" />
                 {isSubmitting ? "Generating..." : "Generate QR"}
               </button>
             </div>
@@ -426,7 +426,11 @@ export default function MvpFarmerPage() {
             <h2 className="text-lg font-semibold text-white">Crop QR Generated</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-[220px,1fr]">
               <div className="rounded-xl bg-white p-4">
-                <QRCode id="agrichain-qr-svg" value={scanUrl} size={180} />
+                {canRenderReactQRCode() ? (
+                  <ReactQRCode id="agrichain-qr-svg" value={scanUrl} size={180} />
+                ) : (
+                  <p className="text-xs text-slate-600">QR preview unavailable (bundle interop).</p>
+                )}
               </div>
               <div className="space-y-2 text-sm text-slate-300">
                 <p>Product ID: <span className="font-mono text-white">{createdRecord.id}</span></p>

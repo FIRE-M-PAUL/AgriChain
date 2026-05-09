@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { CheckCircle2, Filter, MapPin, Search, ShieldCheck, ShoppingCart, Wallet } from "lucide-react";
 import {
+  isProductVerifiedForMarketplace,
   listProducts,
   recordProductPurchase,
   subscribeToProductChanges,
@@ -115,7 +116,7 @@ export default function MvpMarketplacePage() {
       const farmerName = product?.farmerProfile?.farmerName || "";
       const province = product?.farmerProfile?.province || "";
       const district = product?.farmerProfile?.district || "";
-      const isVerified = Boolean(product?.blockchainSignature);
+      const isVerified = isProductVerifiedForMarketplace(product);
       const priceInSol = getPriceInSol(product);
 
       const matchesSearch =
@@ -171,9 +172,14 @@ export default function MvpMarketplacePage() {
   }, [sortedProducts, buyerDistrict, buyerProvince]);
 
   const stats = useMemo(() => {
-    const totalVerifiedProducts = products.filter((item) => Boolean(item.blockchainSignature)).length;
+    const totalVerifiedProducts = products.filter((item) => isProductVerifiedForMarketplace(item)).length;
     const totalFarmers = new Set(farmerProfiles.map((item) => normalize(item?.walletAddress)).filter(Boolean)).size;
-    const totalRecords = products.filter((item) => item.blockchainSignature || item.solanaProofPda).length;
+    const totalRecords = products.filter(
+      (item) =>
+        item.blockchainSignature ||
+        item.solanaProofPda ||
+        Boolean(item.cropHash && (item.farmerWallet || item.walletAddress))
+    ).length;
     const totalTransactions = products.reduce((sum, item) => sum + (item.purchases?.length || 0), 0);
     return { totalVerifiedProducts, totalFarmers, totalRecords, totalTransactions };
   }, [products, farmerProfiles]);
@@ -316,7 +322,7 @@ export default function MvpMarketplacePage() {
               <div className="space-y-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-200">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Solana Powered Verification
+                  Auto-verified listings + optional Solana proof
                 </span>
                 <p className="flex items-center justify-center gap-2 text-xs text-slate-300">
                   <Wallet className="h-4 w-4 text-violet-300" />
@@ -449,7 +455,7 @@ export default function MvpMarketplacePage() {
             </label>
             <label className="flex items-end">
               <span className="flex w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-100">
-                Verified farmers only
+                Verified listings only
                 <input
                   type="checkbox"
                   checked={verifiedOnly}
@@ -525,7 +531,8 @@ export default function MvpMarketplacePage() {
             <p className="text-sm text-slate-300">{totalProducts} products available</p>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {sortedProducts.map((product) => {
-                const isVerified = Boolean(product.blockchainSignature);
+                const isVerified = isProductVerifiedForMarketplace(product);
+                const chainBacked = Boolean(product.blockchainSignature);
                 const priceInSol = getPriceInSol(product);
                 const quantityAvailable = getQuantityAvailable(product);
                 const unitType = product.unitType || "units";
@@ -564,7 +571,11 @@ export default function MvpMarketplacePage() {
                       <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-2">
                         <p className="flex items-center gap-1 text-xs font-semibold text-emerald-300">
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          {isVerified ? "Solana Verified" : "Pending On-chain Proof"}
+                          {chainBacked
+                            ? "Solana verified"
+                            : isVerified
+                              ? "System verified"
+                              : "Pending verification"}
                         </p>
                         <p className="mt-1 text-[11px] text-slate-400">Wallet: {shortenWallet(product.farmerWallet || product.walletAddress || "")}</p>
                         <p className="text-[11px] text-slate-400">

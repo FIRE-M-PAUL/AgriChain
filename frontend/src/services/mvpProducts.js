@@ -36,6 +36,39 @@ function normalizeProfile(profile) {
   return profile;
 }
 
+/** On save: chain proof wins; else cryptographically fingerprinted listing + farmer identity = auto verified for marketplace. */
+function computeVerificationStatus(record) {
+  if (record.blockchainSignature) return "verified_on_chain";
+  const hasHash = Boolean(record.cropHash && String(record.cropHash).trim().length >= 16);
+  const hasWallet = Boolean((record.walletAddress || record.farmerWallet || "").trim());
+  const profile = normalizeProfile(record.farmerProfile);
+  const hasIdentity = Boolean(
+    (profile.farmerName || record.farmerName || "").trim()
+  );
+  if (hasHash && hasWallet && hasIdentity) return "mvp_verified";
+  return "pending";
+}
+
+/** Buyer marketplace: on-chain proof or MVP auto-verified (crop hash + farmer identity). */
+export function isProductVerifiedForMarketplace(product) {
+  if (!product) return false;
+  if (product.blockchainSignature) return true;
+  const vs = product.verificationStatus || "";
+  return vs === "verified_on_chain" || vs === "mvp_verified";
+}
+
+/** Backfill older rows: hash + wallet ⇒ treat as MVP verified for buyers. */
+function normalizeReadVerificationStatus(r) {
+  const stored = r.verification_status ?? r.verificationStatus ?? "pending";
+  const sig = r.blockchain_signature ?? r.blockchainSignature;
+  if (sig) return "verified_on_chain";
+  if (stored === "verified_on_chain" || stored === "mvp_verified") return stored;
+  const hash = r.crop_hash ?? r.cropHash;
+  const wallet = r.farmer_wallet ?? r.wallet_address;
+  if (hash && wallet) return "mvp_verified";
+  return stored || "pending";
+}
+
 /** Maps DB row → UI shape used across MVP pages. */
 export function rowToProduct(row) {
   if (!row) return null;
@@ -67,7 +100,7 @@ export function rowToProduct(row) {
     blockchainSignature: r.blockchain_signature ?? r.blockchainSignature ?? "",
     blockchainTimestamp: r.blockchain_timestamp ?? r.blockchainTimestamp ?? "",
     blockchainExplorerUrl: r.blockchain_explorer_url ?? r.blockchainExplorerUrl ?? "",
-    verificationStatus: r.verification_status ?? r.verificationStatus ?? "pending",
+    verificationStatus: normalizeReadVerificationStatus(r),
     purchases: parseJsonArray(r.purchases, []),
     createdAtIso: r.created_at ? new Date(r.created_at).toISOString() : r.createdAtIso ?? "",
     source: "supabase",
@@ -110,7 +143,7 @@ function productToRow(record, cropImageUrlFinal) {
     blockchain_signature: record.blockchainSignature || "",
     blockchain_timestamp: record.blockchainTimestamp ? String(record.blockchainTimestamp) : "",
     blockchain_explorer_url: record.blockchainExplorerUrl || "",
-    verification_status: record.blockchainSignature ? "verified_on_chain" : "pending",
+    verification_status: computeVerificationStatus(record),
     purchases: Array.isArray(record.purchases) ? record.purchases : [],
   };
 }

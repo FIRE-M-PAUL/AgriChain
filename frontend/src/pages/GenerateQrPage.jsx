@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import QRCode from "react-qr-code";
 import { Download, Printer, Share2 } from "lucide-react";
+import { ReactQRCode, canRenderReactQRCode } from "../lib/reactQrCode";
 import Card from "../components/Card";
 import PageScaffold from "../components/PageScaffold";
 import StatusBadge from "../components/dashboard/StatusBadge";
@@ -58,7 +58,15 @@ export default function GenerateQrPage() {
         </Card>
 
         <Card className="space-y-4 text-center">
-          <div className="mx-auto w-fit rounded-xl bg-white p-3">{qrValue ? <QRCode value={qrValue} size={180} /> : <p className="text-xs text-slate-500">Select a product</p>}</div>
+          <div className="mx-auto w-fit rounded-xl bg-white p-3">
+            {qrValue && canRenderReactQRCode() ? (
+              <ReactQRCode value={qrValue} size={180} />
+            ) : qrValue ? (
+              <p className="text-xs text-slate-500">QR unavailable</p>
+            ) : (
+              <p className="text-xs text-slate-500">Select a product</p>
+            )}
+          </div>
           <div className="flex flex-wrap justify-center gap-2">
             <button className="rounded-xl border border-white/20 px-3 py-2 text-xs hover:bg-white/10">
               <Download className="mr-1 inline h-3.5 w-3.5" />

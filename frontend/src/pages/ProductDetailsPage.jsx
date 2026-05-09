@@ -4,7 +4,7 @@ import MainLayout from "../layouts/MainLayout";
 import Card from "../components/Card";
 import BrandLogo from "../components/BrandLogo";
 import Loader from "../components/Loader";
-import QRCode from "react-qr-code";
+import { ReactQRCode, canRenderReactQRCode } from "../lib/reactQrCode";
 import { productService } from "../services/api";
 
 export default function ProductDetailsPage() {
@@ -88,7 +88,9 @@ export default function ProductDetailsPage() {
             )}
           </div>
           <div className="w-fit rounded-xl bg-white p-3">
-            <QRCode value={`${window.location.origin}/products/${product.unique_code}`} size={160} />
+            {canRenderReactQRCode() ? (
+              <ReactQRCode value={`${window.location.origin}/products/${product.unique_code}`} size={160} />
+            ) : null}
           </div>
         </Card>
       </div>

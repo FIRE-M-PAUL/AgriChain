@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import QRCode from "react-qr-code";
+import { ReactQRCode, canRenderReactQRCode } from "../lib/reactQrCode";
 import Card from "./Card";
 
 export default function QRDisplay({ value, product }) {
@@ -33,7 +33,7 @@ export default function QRDisplay({ value, product }) {
     <Card className="space-y-4 text-center">
       <h3 className="text-lg font-semibold">Generated QR Code</h3>
       <div ref={qrRef} className="mx-auto w-fit rounded-xl bg-white p-3">
-        <QRCode value={value} size={170} />
+        {canRenderReactQRCode() ? <ReactQRCode value={value} size={170} /> : null}
       </div>
       {product?.product_id && <p className="text-sm text-slate-300">Product ID: {product.product_id}</p>}
       <button onClick={downloadQr} className="rounded-xl border border-emerald-300/40 px-3 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10">

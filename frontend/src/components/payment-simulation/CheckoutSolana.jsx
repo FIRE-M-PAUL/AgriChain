@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Copy, Wallet } from "lucide-react";
-import QRCode from "react-qr-code";
+import { ReactQRCode, canRenderReactQRCode } from "../../lib/reactQrCode";
 import { MOCK_SOLANA_WALLET } from "./paymentConstants";
 import { simulateSolanaPayment } from "../../services/mockPaymentApi";
 
@@ -86,7 +86,11 @@ export default function CheckoutSolana({
           </p>
         </div>
         <div className={`rounded-xl border p-3 ${isLight ? "border-slate-200 bg-white" : "border-slate-600 bg-black/40"}`}>
-          <QRCode value={qrValue} size={88} bgColor={isLight ? "#ffffff" : "#0f172a"} fgColor="#10b981" />
+          {canRenderReactQRCode() ? (
+            <ReactQRCode value={qrValue} size={88} bgColor={isLight ? "#ffffff" : "#0f172a"} fgColor="#10b981" />
+          ) : (
+            <span className={`text-[10px] ${muted}`}>QR unavailable</span>
+          )}
         </div>
       </div>
 

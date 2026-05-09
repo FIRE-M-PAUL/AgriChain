@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { Camera, ImageUp, ShieldCheck, TriangleAlert } from "lucide-react";
-import { getProductById } from "../services/mvpProducts";
+import { getProductById, isProductVerifiedForMarketplace } from "../services/mvpProducts";
 import { verifySolanaProof } from "../services/solanaProof";
 
 function getProductIdFromQr(raw = "") {
@@ -27,7 +27,9 @@ export default function MvpScanPage() {
     if (solanaProof?.verified) return "Solana Verified";
     if (solanaProof?.proofExists && solanaProof?.hashMatch === false) return "Hash Mismatch";
     if (solanaProof?.proofExists) return "Proof Found";
-    return product?.blockchainSignature ? "Signature Found" : "Proof Not Submitted";
+    if (product?.blockchainSignature) return "Signature Found";
+    if (isProductVerifiedForMarketplace(product)) return "System verified";
+    return "Proof Not Submitted";
   }, [product, solanaProof]);
 
   const inventory = useMemo(() => {

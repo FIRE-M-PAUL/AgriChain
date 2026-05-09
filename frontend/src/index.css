@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --agri-forest: #0f3d2e;
+  --agri-maize: #2f7d32;
+  --agri-crop: #6dbe45;
+  --agri-organic: #a7d96c;
+  --agri-gold: #d9b44a;
+  --agri-sunrise: #f2d16b;
+  --agri-dawn: #e8c75f;
+  --agri-mist: #eaf7ea;
+  --agri-field: #ddf2dd;
+  --agri-warmth: #f5f0d8;
+  --agri-bg: #f6faf4;
+  --agri-surface: rgba(255, 255, 255, 0.92);
+  --agri-text: #0f3d2e;
+  --agri-muted: #4a5c4e;
+  /* legacy aliases */
+  --agri-primary: var(--agri-maize);
+  --agri-leaf: var(--agri-crop);
+  --agri-glow: var(--agri-organic);
+  --agri-gold-soft: var(--agri-sunrise);
+}
+
 body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   background: radial-gradient(circle at 10% 10%, rgba(34, 197, 94, 0.18), transparent 35%),
@@ -17,4 +39,205 @@ body {
 
 .brand-glow {
   box-shadow: 0 0 22px rgba(34, 197, 94, 0.35), 0 0 40px rgba(250, 204, 21, 0.14);
+}
+
+html.theme-light body {
+  background-image:
+    radial-gradient(ellipse 90% 55% at 10% 6%, rgba(242, 209, 107, 0.28), transparent 40%),
+    radial-gradient(ellipse 75% 50% at 92% 12%, rgba(167, 217, 108, 0.22), transparent 46%),
+    radial-gradient(ellipse 60% 45% at 50% 100%, rgba(47, 125, 50, 0.08), transparent 55%),
+    linear-gradient(135deg, #eaf7ea 0%, #ddf2dd 40%, #f5f0d8 100%);
+  background-color: var(--agri-mist);
+  color: var(--agri-text);
+  min-height: 100vh;
+}
+
+html.theme-light .glass {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.97), rgba(234, 247, 234, 0.88));
+  border: 1px solid rgba(47, 125, 50, 0.22);
+  box-shadow:
+    0 12px 40px rgba(15, 61, 46, 0.08),
+    0 2px 10px rgba(47, 125, 50, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+}
+
+html.theme-light .bg-slate-950 {
+  background-color: var(--agri-bg) !important;
+}
+
+html.theme-light .bg-slate-900,
+html.theme-light .bg-slate-900\/70,
+html.theme-light .bg-slate-900\/60,
+html.theme-light .bg-slate-900\/50 {
+  background-color: rgba(255, 253, 248, 0.94) !important;
+}
+
+html.theme-light .bg-slate-900\/80,
+html.theme-light .bg-slate-950\/70 {
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.96), rgba(245, 250, 243, 0.94)) !important;
+}
+
+html.theme-light .text-slate-100,
+html.theme-light .text-slate-200,
+html.theme-light .text-slate-300,
+html.theme-light .text-white {
+  color: var(--agri-text) !important;
+}
+
+html.theme-light .text-slate-400,
+html.theme-light .text-slate-500 {
+  color: var(--agri-muted) !important;
+}
+
+html.theme-light h1,
+html.theme-light h2,
+html.theme-light h3,
+html.theme-light h4 {
+  color: var(--agri-forest) !important;
+}
+
+html.theme-light .border-slate-700,
+html.theme-light .border-slate-600,
+html.theme-light .border-white\/10 {
+  border-color: rgba(47, 125, 50, 0.22) !important;
+}
+
+/* Branded light-mode accent mappings */
+html.theme-light .text-emerald-300,
+html.theme-light .text-emerald-200,
+html.theme-light .text-cyan-300,
+html.theme-light .text-cyan-200,
+html.theme-light .text-violet-300,
+html.theme-light .text-violet-200 {
+  color: var(--agri-maize) !important;
+}
+
+html.theme-light .text-amber-300 {
+  color: var(--agri-gold) !important;
+}
+
+html.theme-light .bg-emerald-500,
+html.theme-light .bg-cyan-500 {
+  background-image: linear-gradient(135deg, var(--agri-maize) 0%, #358a38 52%, var(--agri-gold) 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 26px rgba(15, 61, 46, 0.18);
+}
+
+html.theme-light .hover\:bg-emerald-400:hover,
+html.theme-light .hover\:bg-cyan-400:hover {
+  background-image: linear-gradient(135deg, #276e2a 0%, var(--agri-maize) 55%, var(--agri-dawn) 100%) !important;
+  box-shadow: 0 14px 32px rgba(217, 180, 74, 0.22);
+}
+
+html.theme-light .bg-emerald-500\/10,
+html.theme-light .bg-emerald-500\/15,
+html.theme-light .bg-emerald-500\/20,
+html.theme-light .bg-cyan-500\/10 {
+  background-color: rgba(167, 217, 108, 0.22) !important;
+}
+
+html.theme-light .border-emerald-300\/25,
+html.theme-light .border-emerald-300\/30,
+html.theme-light .border-emerald-300\/40,
+html.theme-light .border-cyan-300\/40,
+html.theme-light .border-violet-300\/40 {
+  border-color: rgba(47, 125, 50, 0.32) !important;
+}
+
+/* Branded hover polish */
+html.theme-light .glass:hover {
+  box-shadow:
+    0 18px 44px rgba(15, 61, 46, 0.1),
+    0 4px 14px rgba(47, 125, 50, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-color: rgba(217, 180, 74, 0.35);
+}
+
+/* Navbar and fixed controls */
+html.theme-light header {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.92),
+    rgba(234, 247, 234, 0.9),
+    rgba(245, 240, 216, 0.88)
+  ) !important;
+  border-bottom-color: rgba(47, 125, 50, 0.16) !important;
+  box-shadow: 0 2px 18px rgba(15, 61, 46, 0.06);
+}
+
+/* Hero-style richness in light mode */
+html.theme-light .relative.overflow-hidden::before {
+  content: "";
+  position: absolute;
+  inset: -30% -10% auto -10%;
+  height: 65%;
+  background: radial-gradient(circle, rgba(242, 209, 107, 0.14) 0%, rgba(167, 217, 108, 0) 68%);
+  pointer-events: none;
+}
+
+html.theme-light button[aria-label*="mode"] {
+  border-color: rgba(47, 125, 50, 0.32) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(234, 247, 234, 0.92)) !important;
+  color: var(--agri-forest) !important;
+}
+
+/* Verification accents */
+html.theme-light .brand-glow {
+  box-shadow:
+    0 0 22px rgba(109, 190, 69, 0.22),
+    0 0 36px rgba(217, 180, 74, 0.2);
+}
+
+/* Soft section depth for major containers */
+html.theme-light main > div,
+html.theme-light section {
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+/* MVP landing hero: keep cinematic contrast in light theme (global light rules target headings/text). */
+html.theme-light .mvp-hero h1,
+html.theme-light .mvp-hero h2,
+html.theme-light .mvp-hero .mvp-hero-eyebrow {
+  color: #ffffff !important;
+}
+
+html.theme-light .mvp-hero .text-white,
+html.theme-light .mvp-hero .text-slate-200,
+html.theme-light .mvp-hero .text-slate-300 {
+  color: #f1f5f9 !important;
+}
+
+html.theme-light .mvp-hero .text-amber-200\/90,
+html.theme-light .mvp-hero .text-amber-200 {
+  color: rgba(253, 230, 138, 0.95) !important;
+}
+
+/* MVP hero: photo clarity, composition (cover + tuned anchor), no heavy wash */
+.mvp-hero-photo {
+  background-size: 100% auto;
+  background-repeat: no-repeat;
+  background-position: center top;
+  filter: brightness(1.07) saturate(1.09) contrast(1.04);
+}
+
+@media (max-width: 639.98px) {
+  .mvp-hero-photo {
+    background-size: 135% auto;
+    background-position: center top;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mvp-hero-photo {
+    background-size: 100% auto;
+    background-position: center top;
+  }
+}
+
+@media (min-width: 1536px) {
+  .mvp-hero-photo {
+    background-size: 100% auto;
+    background-position: center top;
+  }
 }

@@ -31,20 +31,22 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/70 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <Link to="/" className="transition hover:opacity-90">
-          <BrandLogo size="sm" showTagline className="md:gap-2" />
+          <BrandLogo size="sm" showTagline />
         </Link>
         <div className="flex items-center gap-2 md:gap-3">
           <Link to="/scanner" className="text-sm text-slate-200 hover:text-white">
             Scan
           </Link>
           {!isAuthenticated ? (
-            <button
-              className="rounded-xl border border-emerald-300/40 px-3 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={onConnect}
-              disabled={isConnecting}
-            >
-              {isConnecting ? "Connecting..." : "Connect"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-xl border border-emerald-300/40 px-3 py-2 text-sm text-emerald-200 hover:bg-emerald-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={onConnect}
+                disabled={isConnecting}
+              >
+                {isConnecting ? "Connecting..." : "Phantom"}
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs text-emerald-300">{shortWallet}</span>

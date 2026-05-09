@@ -12,17 +12,17 @@ export default function BrandLogo({
   compact = false,
 }) {
   const dimensions = {
-    sm: "h-9 w-9",
-    md: "h-12 w-12",
-    lg: "h-20 w-20",
-    xl: "h-28 w-28",
+    sm: "h-12 w-12",
+    md: "h-16 w-16",
+    lg: "h-24 w-24",
+    xl: "h-32 w-32",
   };
 
   const imageNode = (
     <img
       src={PRIMARY_LOGO_SRC}
       alt="AGRICHAIN Logo"
-      className={`${dimensions[size] || dimensions.md} rounded-xl object-cover shadow-[0_0_25px_rgba(34,197,94,0.35)] ring-1 ring-emerald-300/25`}
+      className={`${dimensions[size] || dimensions.md} rounded-full object-cover shadow-[0_0_25px_rgba(34,197,94,0.35)] ring-1 ring-emerald-300/25`}
       onError={(event) => {
         event.currentTarget.src = FALLBACK_LOGO_SRC;
       }}
@@ -40,14 +40,14 @@ export default function BrandLogo({
   );
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`flex flex-col items-center justify-center gap-2 p-1 text-center ${className}`}>
       {logoImage}
       {!compact && (
-        <div>
-          <p className="text-lg font-extrabold tracking-wide text-white">
+        <div className="space-y-0.5">
+          <p className="text-xl font-extrabold tracking-wide text-white sm:text-2xl">
             AGRI<span className="text-primary">CHAIN</span>
           </p>
-          {showTagline && <p className="text-[11px] text-emerald-200/80">Blockchain • Farming • Trust</p>}
+          {showTagline && <p className="text-xs text-emerald-200/75">Blockchain • Farming • Trust</p>}
         </div>
       )}
     </div>

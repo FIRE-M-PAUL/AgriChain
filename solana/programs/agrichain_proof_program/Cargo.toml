@@ -1,0 +1,19 @@
+[package]
+name = "agrichain_proof_program"
+version = "0.1.0"
+description = "Anchor program for AGRICHAIN product proofs"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "agrichain_proof_program"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.30.1"

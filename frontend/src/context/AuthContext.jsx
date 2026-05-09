@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import bs58 from "bs58";
-import { walletService } from "../services/api";
+import { setStoredRole } from "../services/walletSession";
 
 const AuthContext = createContext(null);
 const WALLET_ADDRESS_KEY = "agrichain_wallet_address";
@@ -17,100 +16,48 @@ function getPhantomProvider() {
   return provider;
 }
 
-function parseWalletError(error) {
-  // Keep user-facing errors actionable while preserving raw debugging details.
-  if (!error) {
-    return "Wallet connection failed. Please try again.";
-  }
-
-  const message = String(error.message || "").toLowerCase();
-  const code = error.code;
-
-  if (code === 4001 || message.includes("user rejected")) {
-    return "Wallet connection was rejected.";
-  }
-  if (message.includes("locked")) {
-    return "Phantom is locked. Unlock your wallet and try again.";
-  }
-  if (message.includes("onlyiftrusted")) {
-    return "Trusted reconnect was not available. Please connect manually.";
-  }
-  if (message.includes("network") || message.includes("failed to fetch")) {
-    return "Network error while connecting wallet. Check your connection.";
-  }
-  if (message.includes("signmessage") || message.includes("signature")) {
-    return "Signature was not completed. Please approve the sign request in Phantom.";
-  }
-  if (message.includes("already processing") || message.includes("already pending")) {
-    return "A wallet request is already in progress. Please wait.";
-  }
-
-  return error.message || "Wallet connection failed. Please try again.";
-}
-
+/** MVP: Phantom-only wallet session (no Django JWT / legacy API). */
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(localStorage.getItem(WALLET_TOKEN_KEY));
   const [walletAddress, setWalletAddress] = useState(localStorage.getItem(WALLET_ADDRESS_KEY));
-  const [role, setRole] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+  /** Kept for backwards compatibility with consumes of `isAuthenticated` / `token` (always clear in MVP). */
+  const [token, setToken] = useState(() => {
+    const legacy = localStorage.getItem(WALLET_TOKEN_KEY);
+    if (legacy) localStorage.removeItem(WALLET_TOKEN_KEY);
+    return null;
+  });
+  const [role] = useState(null);
+  const [profile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isSettingRole, setIsSettingRole] = useState(false);
+  const [isSettingRole] = useState(false);
   const [walletError, setWalletError] = useState("");
 
   const connectWallet = async () => {
     if (isConnecting) {
       throw new Error("A wallet connection is already in progress.");
     }
-
     const provider = getPhantomProvider();
-    const hasWindow = typeof window !== "undefined";
-    const solana = hasWindow ? window.solana : null;
-    console.debug("[AGRICHAIN] Phantom provider detection:", {
-      hasWindow,
-      hasSolana: !!solana,
-      isPhantom: !!solana?.isPhantom,
-    });
-
     if (!provider) {
       throw new Error("Phantom wallet not found. Please install Phantom extension.");
     }
-
     setIsConnecting(true);
     setWalletError("");
     try {
-      console.debug("[AGRICHAIN] Initiating Phantom connect request...");
       const resp = await provider.connect();
-      const connectedAddress = resp?.publicKey?.toString?.() || provider.publicKey?.toString?.();
+      const connectedAddress = resp?.publicKey?.toString?.() || provider.publicKey?.toString?.() || "";
       if (!connectedAddress) {
         throw new Error("Connected wallet address was not returned by Phantom.");
       }
-      console.debug("[AGRICHAIN] Phantom connected:", connectedAddress);
-
-      const nonceRes = await walletService.nonce({ wallet_address: connectedAddress });
-      const encodedMessage = new TextEncoder().encode(nonceRes.data.message);
-      const signed = await provider.signMessage(encodedMessage, "utf8");
-      const signature = bs58.encode(signed.signature);
-
-      const verifyRes = await walletService.verify({
-        wallet_address: connectedAddress,
-        nonce: nonceRes.data.nonce,
-        signature,
-      });
-
-      localStorage.setItem(WALLET_TOKEN_KEY, verifyRes.data.token);
       localStorage.setItem(WALLET_ADDRESS_KEY, connectedAddress);
-      setToken(verifyRes.data.token);
       setWalletAddress(connectedAddress);
-      setRole(verifyRes.data.role || null);
+      setToken(null);
       setWalletError("");
-      console.debug("[AGRICHAIN] Wallet login successful.");
-      return {
-        role: verifyRes.data.role || null,
-      };
+      return { role: null };
     } catch (error) {
-      console.error("Wallet connection failed:", error);
-      const message = parseWalletError(error);
+      const message =
+        error?.code === 4001 || String(error?.message || "").toLowerCase().includes("rejected")
+          ? "Wallet connection was rejected."
+          : error.message || "Wallet connection failed.";
       setWalletError(message);
       throw new Error(message);
     } finally {
@@ -118,92 +65,50 @@ export function AuthProvider({ children }) {
     }
   };
 
+  /** Phantom disconnect + wipe local JWT/MVP hints; no REST calls. */
   const disconnectWallet = async () => {
     try {
-      await walletService.disconnect();
-      const provider = getPhantomProvider();
-      if (provider) {
-        await provider.disconnect();
-      }
+      const phantomProvider = getPhantomProvider();
+      if (phantomProvider?.disconnect) await phantomProvider.disconnect();
     } catch {
-      // Ignore disconnect cleanup errors
+      /* already disconnected */
     }
     localStorage.removeItem(WALLET_TOKEN_KEY);
     localStorage.removeItem(WALLET_ADDRESS_KEY);
+    setStoredRole("");
     setToken(null);
     setWalletAddress(null);
-    setRole(null);
-    setProfile(null);
     setWalletError("");
   };
 
-  const selectRole = async (nextRole) => {
-    if (!token) {
-      throw new Error("Connect wallet before selecting a role.");
-    }
-    setIsSettingRole(true);
-    try {
-      const res = await walletService.setRole({ role: nextRole });
-      setRole(res.data.role);
-      setProfile(res.data);
-    } catch (error) {
-      const message = error?.response?.data?.detail || error.message || "Could not save wallet role";
-      throw new Error(message);
-    } finally {
-      setIsSettingRole(false);
-    }
+  const selectRole = async () => {
+    throw new Error("Role selection runs on /role MVP page (no Django backend).");
   };
 
-  const submitFarmerVerification = async (payload) => {
-    const res = await walletService.submitFarmerVerification(payload);
-    setProfile(res.data.profile);
-    setRole(res.data.profile.role);
-    return res.data;
+  const submitFarmerVerification = async () => {
+    throw new Error("Use Farmer dashboard MVP (Supabase + Phantom). Legacy verification disabled.");
   };
 
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!token) {
-        setLoadingProfile(false);
-        return;
-      }
-      try {
-        const res = await walletService.me();
-        setWalletAddress(res.data.wallet_address);
-        setRole(res.data.role || null);
-        setProfile(res.data);
-      } catch {
-        disconnectWallet();
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
-    loadProfile();
-  }, [token]);
+    setLoadingProfile(false);
+  }, []);
 
   useEffect(() => {
     const provider = getPhantomProvider();
-    if (!provider || token || isConnecting) {
+    if (!provider || walletAddress || isConnecting) {
       return;
     }
 
     let isMounted = true;
     const autoReconnect = async () => {
-      const hadWalletBefore = !!localStorage.getItem(WALLET_ADDRESS_KEY);
-      if (!hadWalletBefore) {
-        return;
-      }
-
+      const stored = localStorage.getItem(WALLET_ADDRESS_KEY);
+      if (!stored) return;
       try {
-        console.debug("[AGRICHAIN] Attempting trusted Phantom reconnect...");
         const resp = await provider.connect({ onlyIfTrusted: true });
         const trustedAddress = resp?.publicKey?.toString?.() || provider.publicKey?.toString?.();
-        if (trustedAddress && isMounted) {
-          setWalletAddress(trustedAddress);
-          console.debug("[AGRICHAIN] Trusted reconnect success:", trustedAddress);
-        }
-      } catch (error) {
-        console.error("Trusted reconnect failed:", error);
+        if (trustedAddress && isMounted) setWalletAddress(trustedAddress);
+      } catch {
+        /* user must reconnect */
       }
     };
 
@@ -211,7 +116,7 @@ export function AuthProvider({ children }) {
     return () => {
       isMounted = false;
     };
-  }, [token, isConnecting]);
+  }, [walletAddress, isConnecting]);
 
   const value = useMemo(
     () => ({
@@ -219,8 +124,8 @@ export function AuthProvider({ children }) {
       walletAddress,
       role,
       profile,
-      needsRoleSelection: !!token && !role,
-      isAuthenticated: !!token,
+      needsRoleSelection: false,
+      isAuthenticated: Boolean(walletAddress),
       loadingProfile,
       isConnecting,
       isSettingRole,
@@ -230,7 +135,16 @@ export function AuthProvider({ children }) {
       selectRole,
       submitFarmerVerification,
     }),
-    [token, walletAddress, role, profile, loadingProfile, isConnecting, isSettingRole, walletError]
+    [
+      token,
+      walletAddress,
+      role,
+      profile,
+      loadingProfile,
+      isConnecting,
+      isSettingRole,
+      walletError,
+    ]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,0 +1,5 @@
+[workspace]
+members = [
+  "programs/agrichain_proof_program"
+]
+resolver = "2"

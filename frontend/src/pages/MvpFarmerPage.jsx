@@ -11,6 +11,7 @@ import PhantomConnectButton from "../components/PhantomConnectButton";
 import { useAuth } from "../context/AuthContext";
 import { getStoredWalletAddress, setStoredWalletAddress } from "../services/walletSession";
 import { formatNrcInput, isValidNrc } from "../utils/nrc";
+import { mapSupabaseErrorForUser } from "../utils/supabaseErrors";
 
 function getPhantomProvider() {
   if (typeof window === "undefined") return null;
@@ -77,10 +78,18 @@ export default function MvpFarmerPage() {
       if (!address) throw new Error("Could not read connected wallet address.");
       setWalletAddress(address);
       setStoredWalletAddress(address);
-      const existing = await getFarmerProfile(address);
-      if (existing) setProfile(existing);
       toast.success("Phantom wallet connected.");
-    } catch {
+      try {
+        const existing = await getFarmerProfile(address);
+        if (existing) setProfile(existing);
+      } catch (profileErr) {
+        console.error("[AGRICHAIN] farmer profile fetch after connect:", profileErr);
+        toast.error(
+          mapSupabaseErrorForUser(profileErr, "Could not load farmer profile from Supabase.")
+        );
+      }
+    } catch (connectErr) {
+      console.error("[AGRICHAIN] Phantom connect:", connectErr);
       toast.error("Wallet connection failed.");
     }
   };
@@ -110,8 +119,9 @@ export default function MvpFarmerPage() {
       });
       setProfile(saved);
       toast.success("Farmer profile saved.");
-    } catch {
-      toast.error("Could not save farmer profile.");
+    } catch (err) {
+      console.error("[AGRICHAIN] saveFarmerProfile:", err);
+      toast.error(mapSupabaseErrorForUser(err, "Could not save farmer profile."));
     } finally {
       setIsSavingProfile(false);
     }

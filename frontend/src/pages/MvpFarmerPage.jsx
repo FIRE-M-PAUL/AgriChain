@@ -10,6 +10,7 @@ import PhantomConnectButton from "../components/PhantomConnectButton";
 import { useAuth } from "../context/AuthContext";
 import { getStoredWalletAddress, setStoredWalletAddress } from "../services/walletSession";
 import { formatNrcInput, isValidNrc } from "../utils/nrc";
+import { formatPhoneTenDigits, isValidPhoneTenDigits } from "../utils/phoneTen";
 import { mapSupabaseErrorForUser } from "../utils/supabaseErrors";
 import { ReactQRCode, canRenderReactQRCode } from "../lib/reactQrCode";
 
@@ -33,6 +34,7 @@ export default function MvpFarmerPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [nrcTouched, setNrcTouched] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [profile, setProfile] = useState(null);
   const [profileForm, setProfileForm] = useState({
     farmerName: "",
@@ -47,6 +49,8 @@ export default function MvpFarmerPage() {
   const [farmerProducts, setFarmerProducts] = useState([]);
   const nrcValid = isValidNrc(profileForm.nationalId);
   const showNrcError = nrcTouched && !nrcValid;
+  const phoneValid = isValidPhoneTenDigits(profileForm.phoneNumber);
+  const showPhoneError = phoneTouched && !phoneValid;
 
   const elevenLabs = useMemo(() => getElevenLabsPlaceholderConfig(), []);
   const scanUrl = createdRecord ? `${window.location.origin}/scan?id=${createdRecord.id}` : "";
@@ -109,6 +113,11 @@ export default function MvpFarmerPage() {
     setNrcTouched(true);
     if (!nrcValid) {
       toast.error("Please enter a valid NRC number.");
+      return;
+    }
+    setPhoneTouched(true);
+    if (!phoneValid) {
+      toast.error("Phone number must be exactly 10 digits.");
       return;
     }
     setIsSavingProfile(true);
@@ -328,7 +337,34 @@ export default function MvpFarmerPage() {
               </div>
               <input className="rounded-xl bg-slate-900 p-3 text-sm" placeholder="Province *" value={profileForm.province} onChange={(e) => setProfileForm((p) => ({ ...p, province: e.target.value }))} />
               <input className="rounded-xl bg-slate-900 p-3 text-sm" placeholder="District *" value={profileForm.district} onChange={(e) => setProfileForm((p) => ({ ...p, district: e.target.value }))} />
-              <input className="rounded-xl bg-slate-900 p-3 text-sm" placeholder="Phone number *" value={profileForm.phoneNumber} onChange={(e) => setProfileForm((p) => ({ ...p, phoneNumber: e.target.value }))} />
+              <div className="space-y-1 sm:col-span-2">
+                <input
+                  className={`w-full rounded-xl border p-3 text-sm ${
+                    showPhoneError
+                      ? "border-rose-300/60 bg-rose-500/10 text-rose-100"
+                      : phoneTouched && phoneValid
+                        ? "border-emerald-300/50 bg-emerald-500/10 text-emerald-100"
+                        : "border-transparent bg-slate-900 text-white"
+                  }`}
+                  placeholder="Phone number (10 digits) *"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  maxLength={10}
+                  value={profileForm.phoneNumber}
+                  onBlur={() => setPhoneTouched(true)}
+                  onChange={(e) =>
+                    setProfileForm((p) => ({
+                      ...p,
+                      phoneNumber: formatPhoneTenDigits(e.target.value),
+                    }))
+                  }
+                />
+                {showPhoneError ? (
+                  <p className="text-xs text-rose-300">Enter exactly 10 digits (numbers only).</p>
+                ) : (
+                  <p className="text-xs text-slate-400">10 digits — spaces and symbols are stripped.</p>
+                )}
+              </div>
               <input className="rounded-xl bg-slate-900 p-3 text-sm" placeholder="Crop specialization" value={profileForm.cropSpecialization} onChange={(e) => setProfileForm((p) => ({ ...p, cropSpecialization: e.target.value }))} />
               <button disabled={isSavingProfile} className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-cyan-400 disabled:opacity-70 sm:col-span-2">
                 {isSavingProfile ? "Saving profile..." : "Save Farmer Profile"}

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { CheckCircle2, Filter, MapPin, Search, ShieldCheck, ShoppingCart, Wallet } from "lucide-react";
 import {
@@ -44,6 +44,9 @@ function getQuantityAvailable(product) {
 }
 
 export default function MvpMarketplacePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  /** Dedupe React Strict Mode double-effect while same `productId` is still in the URL. */
+  const deepLinkStablePidRef = useRef(null);
   const [products, setProducts] = useState([]);
   const [farmerProfiles, setFarmerProfiles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +88,51 @@ export default function MvpMarketplacePage() {
       cancelled = true;
       unsubP();
       unsubF();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isLoading || !products.length) return;
+    const pid = searchParams.get("productId")?.trim();
+    if (!pid) return;
+
+    if (deepLinkStablePidRef.current === pid) return;
+    deepLinkStablePidRef.current = pid;
+
+    const found = products.find((item) => item.id === pid);
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("productId");
+    setSearchParams(next, { replace: true });
+
+    requestAnimationFrame(() => {
+      document.getElementById(`marketplace-product-${pid}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+
+    if (!found) {
+      toast.error("Product not available on the marketplace.");
+      deepLinkStablePidRef.current = null;
+      return;
+    }
+
+    const qty = getQuantityAvailable(found);
+    const soldOut = found.inventoryStatus === "sold_out" || qty <= 0;
+    if (soldOut) {
+      toast.error("This product is sold out.");
+      deepLinkStablePidRef.current = null;
+      return;
+    }
+
+    setSelectedProduct(found);
+    setPurchaseQuantity(DEFAULT_BUY_QUANTITY);
+  }, [isLoading, products, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    return () => {
+      deepLinkStablePidRef.current = null;
     };
   }, []);
 
@@ -541,7 +589,11 @@ export default function MvpMarketplacePage() {
                 const description = product.description || `Fresh ${product.cropName} from verified farmers.`;
 
                 return (
-                  <article key={product.id} className="glass overflow-hidden rounded-2xl border border-slate-700/80">
+                  <article
+                    key={product.id}
+                    id={`marketplace-product-${product.id}`}
+                    className="glass overflow-hidden rounded-2xl border border-slate-700/80 scroll-mt-24"
+                  >
                     <div className="h-36 bg-gradient-to-br from-emerald-500/30 via-cyan-500/15 to-slate-900 p-4">
                       {product.imageUrl ? (
                         <img

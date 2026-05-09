@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { Camera, ImageUp, ShieldCheck, TriangleAlert } from "lucide-react";
@@ -8,7 +8,7 @@ import { verifySolanaProof } from "../services/solanaProof";
 function getProductIdFromQr(raw = "") {
   try {
     const url = new URL(raw);
-    return url.searchParams.get("id") || raw.trim();
+    return url.searchParams.get("id") || url.searchParams.get("productId") || raw.trim();
   } catch {
     return raw.trim();
   }
@@ -16,7 +16,7 @@ function getProductIdFromQr(raw = "") {
 
 export default function MvpScanPage() {
   const [params] = useSearchParams();
-  const [manualValue, setManualValue] = useState(params.get("id") || "");
+  const [manualValue, setManualValue] = useState(() => params.get("id") || params.get("productId") || "");
   const [product, setProduct] = useState(null);
   const [solanaProof, setSolanaProof] = useState(null);
   const [error, setError] = useState("");
@@ -70,6 +70,13 @@ export default function MvpScanPage() {
     }
   };
 
+  const queryLookupRaw = params.get("id") || params.get("productId") || "";
+  useEffect(() => {
+    const productId = getProductIdFromQr(queryLookupRaw.trim());
+    if (productId) loadProduct(productId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load when route query changes; loadProduct only reads stable deps
+  }, [queryLookupRaw]);
+
   const onScan = (results) => {
     const value = results?.[0]?.rawValue;
     if (!value) return;
@@ -99,8 +106,8 @@ export default function MvpScanPage() {
       <div className="mx-auto max-w-5xl space-y-6">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl font-bold text-white">Buyer QR Scanner</h1>
-          <Link to="/farmer" className="text-sm text-emerald-300 hover:text-emerald-200">
-            Record Crop
+          <Link to="/marketplace" className="text-sm text-emerald-300 hover:text-emerald-200">
+            Marketplace
           </Link>
         </div>
 
@@ -151,13 +158,46 @@ export default function MvpScanPage() {
 
               <div className="rounded-xl border border-emerald-300/25 bg-emerald-500/10 p-4">
                 <h3 className="text-base font-semibold text-white">Farmer Information</h3>
+                <p className="mt-1 text-xs text-emerald-200/90">
+                  Tap any field below to buy this product on the marketplace.
+                </p>
                 <div className="mt-2 grid gap-2 text-sm text-slate-200 sm:grid-cols-2">
-                  <p>Farmer name: <span className="text-white">{product?.farmerProfile?.farmerName || "Not provided"}</span></p>
-                  <p>Farm name: <span className="text-white">{product?.farmerProfile?.farmName || "Not provided"}</span></p>
-                  <p>Province: <span className="text-white">{product?.farmerProfile?.province || "Not provided"}</span></p>
-                  <p>District: <span className="text-white">{product?.farmerProfile?.district || "Not provided"}</span></p>
-                  <p>Phone number: <span className="text-white">{product?.farmerProfile?.phoneNumber || "Not provided"}</span></p>
-                  <p>Crop specialization: <span className="text-white">{product?.farmerProfile?.cropSpecialization || "Not provided"}</span></p>
+                  <Link
+                    to={`/marketplace?productId=${encodeURIComponent(product.id)}`}
+                    className="rounded-lg border border-transparent px-2 py-1.5 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                  >
+                    Farmer name: <span className="text-white">{product?.farmerProfile?.farmerName || "Not provided"}</span>
+                  </Link>
+                  <Link
+                    to={`/marketplace?productId=${encodeURIComponent(product.id)}`}
+                    className="rounded-lg border border-transparent px-2 py-1.5 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                  >
+                    Farm name: <span className="text-white">{product?.farmerProfile?.farmName || "Not provided"}</span>
+                  </Link>
+                  <Link
+                    to={`/marketplace?productId=${encodeURIComponent(product.id)}`}
+                    className="rounded-lg border border-transparent px-2 py-1.5 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                  >
+                    Province: <span className="text-white">{product?.farmerProfile?.province || "Not provided"}</span>
+                  </Link>
+                  <Link
+                    to={`/marketplace?productId=${encodeURIComponent(product.id)}`}
+                    className="rounded-lg border border-transparent px-2 py-1.5 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                  >
+                    District: <span className="text-white">{product?.farmerProfile?.district || "Not provided"}</span>
+                  </Link>
+                  <Link
+                    to={`/marketplace?productId=${encodeURIComponent(product.id)}`}
+                    className="rounded-lg border border-transparent px-2 py-1.5 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                  >
+                    Phone number: <span className="text-white">{product?.farmerProfile?.phoneNumber || "Not provided"}</span>
+                  </Link>
+                  <Link
+                    to={`/marketplace?productId=${encodeURIComponent(product.id)}`}
+                    className="rounded-lg border border-transparent px-2 py-1.5 transition hover:border-emerald-400/50 hover:bg-emerald-500/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400"
+                  >
+                    Crop specialization: <span className="text-white">{product?.farmerProfile?.cropSpecialization || "Not provided"}</span>
+                  </Link>
                 </div>
               </div>
 

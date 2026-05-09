@@ -24,11 +24,22 @@
   --agri-gold-soft: var(--agri-sunrise);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
+  overflow-x: clip;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   background: radial-gradient(circle at 10% 10%, rgba(34, 197, 94, 0.18), transparent 35%),
     radial-gradient(circle at 90% 0%, rgba(245, 158, 11, 0.15), transparent 28%), #020617;
   color: #f8fafc;
+}
+
+#root {
+  min-height: 100dvh;
+  min-width: 0;
 }
 
 .glass {

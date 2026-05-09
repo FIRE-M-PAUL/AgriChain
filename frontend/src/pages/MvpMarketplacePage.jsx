@@ -354,8 +354,8 @@ export default function MvpMarketplacePage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100">
-      <div className="mx-auto max-w-6xl space-y-5">
+    <main className="min-h-screen min-w-0 bg-slate-950 px-4 py-8 pb-24 text-slate-100 sm:pb-8">
+      <div className="mx-auto max-w-6xl min-w-0 space-y-5">
         <section className="glass relative overflow-hidden rounded-3xl border border-emerald-400/20 p-5 sm:p-7">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(34,197,94,0.2),rgba(15,23,42,0.1)_55%)]" />
           <div className="relative z-10 space-y-4 text-center">
@@ -513,23 +513,23 @@ export default function MvpMarketplacePage() {
               </span>
             </label>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <label className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-200">
-              Buyer province:
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <label className="flex min-w-0 flex-col gap-1 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-200 sm:inline-flex sm:flex-row sm:items-center">
+              <span className="shrink-0">Buyer province:</span>
               <input
                 value={buyerProvince}
                 onChange={(event) => setBuyerProvince(event.target.value)}
                 placeholder="Set for nearby ranking"
-                className="ml-2 w-28 bg-transparent outline-none placeholder:text-slate-500"
+                className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-500 sm:ml-2 sm:w-28 sm:flex-none"
               />
             </label>
-            <label className="rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-200">
-              Buyer district:
+            <label className="flex min-w-0 flex-col gap-1 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-200 sm:inline-flex sm:flex-row sm:items-center">
+              <span className="shrink-0">Buyer district:</span>
               <input
                 value={buyerDistrict}
                 onChange={(event) => setBuyerDistrict(event.target.value)}
                 placeholder="Set for nearby ranking"
-                className="ml-2 w-28 bg-transparent outline-none placeholder:text-slate-500"
+                className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-500 sm:ml-2 sm:w-28 sm:flex-none"
               />
             </label>
             <button
@@ -675,8 +675,8 @@ export default function MvpMarketplacePage() {
       </div>
 
       {selectedProduct ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-slate-950/75 p-4 sm:items-center sm:justify-center">
-          <div className="glass w-full max-w-md rounded-2xl border border-slate-700 p-5">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:items-center">
+          <div className="glass max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-700 p-5">
             <h3 className="text-lg font-semibold text-white">Buy Produce</h3>
             <p className="mt-1 text-sm text-slate-300">{selectedProduct.cropName}</p>
             <p className="mt-1 text-xs text-slate-400">Farmer: {selectedProduct?.farmerProfile?.farmerName || "Unknown farmer"}</p>

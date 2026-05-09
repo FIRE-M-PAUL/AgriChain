@@ -85,7 +85,7 @@ export default function PaymentSimulationModal() {
     checkoutSession.product?.cropName || checkoutSession.label || "Your order";
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-end justify-center p-3 sm:p-6 sm:items-center">
+    <div className="fixed inset-0 z-[110] flex items-end justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-6">
       <motion.button
         type="button"
         aria-label="Close checkout"
@@ -103,7 +103,7 @@ export default function PaymentSimulationModal() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 24 }}
         transition={{ type: "spring", stiffness: 280, damping: 30 }}
-        className={`relative z-10 flex max-h-[min(92vh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border shadow-2xl ${shell}`}
+        className={`relative z-10 flex max-h-[min(92dvh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border shadow-2xl ${shell}`}
       >
         <header className="flex items-start justify-between gap-3 border-b border-inherit px-4 py-3 sm:px-5">
           <div>

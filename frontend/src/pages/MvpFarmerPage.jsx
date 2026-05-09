@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { Mic, QrCode as QrCodeIcon, Download, Share2 } from "lucide-react";
 import { generateProductId, listProducts, saveProductRecord } from "../services/mvpProducts";
 import { getFarmerProfile, saveFarmerProfile } from "../services/mvpFarmers";
-import { getElevenLabsPlaceholderConfig, startVoiceCapture } from "../services/voiceInput";
+import { startVoiceCapture } from "../services/voiceInput";
 import { buildCropHash, recordSolanaProof } from "../services/solanaProof";
 import PhantomConnectButton from "../components/PhantomConnectButton";
 import { useAuth } from "../context/AuthContext";
@@ -52,7 +52,6 @@ export default function MvpFarmerPage() {
   const phoneValid = isValidPhoneTenDigits(profileForm.phoneNumber);
   const showPhoneError = phoneTouched && !phoneValid;
 
-  const elevenLabs = useMemo(() => getElevenLabsPlaceholderConfig(), []);
   const scanUrl = createdRecord ? `${window.location.origin}/scan?id=${createdRecord.id}` : "";
   const farmerSalesSummary = useMemo(() => {
     const products = farmerProducts.filter((item) => item.walletAddress === walletAddress || item.farmerWallet === walletAddress);
@@ -281,10 +280,10 @@ export default function MvpFarmerPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <main className="min-h-screen min-w-0 bg-slate-950 px-4 py-8 pb-24 text-slate-100 sm:pb-8">
+      <div className="mx-auto max-w-4xl min-w-0 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold text-white">Farmer Crop Recorder</h1>
+          <h1 className="min-w-0 shrink text-xl font-bold text-white sm:text-2xl">Farmer Crop Recorder</h1>
           {walletAddress ? (
             <button
               type="button"
@@ -337,7 +336,7 @@ export default function MvpFarmerPage() {
               </div>
               <input className="rounded-xl bg-slate-900 p-3 text-sm" placeholder="Province *" value={profileForm.province} onChange={(e) => setProfileForm((p) => ({ ...p, province: e.target.value }))} />
               <input className="rounded-xl bg-slate-900 p-3 text-sm" placeholder="District *" value={profileForm.district} onChange={(e) => setProfileForm((p) => ({ ...p, district: e.target.value }))} />
-              <div className="space-y-1 sm:col-span-2">
+              <div className="space-y-1">
                 <input
                   className={`w-full rounded-xl border p-3 text-sm ${
                     showPhoneError
@@ -430,9 +429,6 @@ export default function MvpFarmerPage() {
               </button>
             </div>
           </form>
-          <p className="mt-3 text-xs text-slate-400">
-            ElevenLabs integration ready: {elevenLabs.enabled ? "API key detected" : "set VITE_ELEVENLABS_API_KEY to enable cloud STT pipeline"}.
-          </p>
         </section>
 
         {profile ? (
@@ -446,8 +442,8 @@ export default function MvpFarmerPage() {
             <div className="mt-3 space-y-2">
               {farmerSalesSummary.purchaseRecords.slice(-5).reverse().map((purchase) => (
                 <div key={`${purchase.signature}-${purchase.purchasedAtIso}`} className="rounded-xl border border-slate-700 bg-slate-900/50 p-3 text-xs text-slate-300">
-                  <p>Product: <span className="text-white">{purchase.cropName}</span> ({purchase.productId})</p>
-                  <p>Buyer: <span className="font-mono text-white">{purchase.buyerWallet || "Unknown"}</span></p>
+                  <p className="break-words">Product: <span className="text-white">{purchase.cropName}</span> ({purchase.productId})</p>
+                  <p className="break-all">Buyer: <span className="font-mono text-white">{purchase.buyerWallet || "Unknown"}</span></p>
                   <p>Quantity: <span className="text-white">{purchase.quantityPurchased || 0} {purchase.unitType || "units"}</span></p>
                   <p>Payment: <span className="text-white">{Number(purchase.totalPaymentSol || 0).toFixed(4)} SOL</span></p>
                 </div>
@@ -460,21 +456,21 @@ export default function MvpFarmerPage() {
         {createdRecord ? (
           <section className="glass rounded-2xl p-5">
             <h2 className="text-lg font-semibold text-white">Crop QR Generated</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-[220px,1fr]">
-              <div className="rounded-xl bg-white p-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-[220px,1fr]">
+              <div className="mx-auto w-fit max-w-full rounded-xl bg-white p-4 sm:mx-0">
                 {canRenderReactQRCode() ? (
                   <ReactQRCode id="agrichain-qr-svg" value={scanUrl} size={180} />
                 ) : (
                   <p className="text-xs text-slate-600">QR preview unavailable (bundle interop).</p>
                 )}
               </div>
-              <div className="space-y-2 text-sm text-slate-300">
-                <p>Product ID: <span className="font-mono text-white">{createdRecord.id}</span></p>
+              <div className="min-w-0 space-y-2 text-sm text-slate-300">
+                <p className="break-words">Product ID: <span className="break-all font-mono text-white">{createdRecord.id}</span></p>
                 <p>Crop: {createdRecord.cropName}</p>
                 <p>Quantity: {createdRecord.quantityAvailable} {createdRecord.unitType}</p>
                 <p>Price per unit: {Number(createdRecord.pricePerUnit || 0).toFixed(4)} SOL</p>
                 <p>Status: {createdRecord.inventoryStatus === "sold_out" ? "Sold Out" : "Available"}</p>
-                <p>Wallet: <span className="font-mono">{createdRecord.walletAddress}</span></p>
+                <p className="break-all">Wallet: <span className="font-mono">{createdRecord.walletAddress}</span></p>
                 <p>Blockchain proof: {createdRecord.blockchainSignature ? "Recorded on Solana" : "Skipped (wallet or network unavailable)"}</p>
                 {createdRecord.blockchainExplorerUrl ? (
                   <a href={createdRecord.blockchainExplorerUrl} target="_blank" rel="noreferrer" className="text-xs text-cyan-300 hover:text-cyan-200">

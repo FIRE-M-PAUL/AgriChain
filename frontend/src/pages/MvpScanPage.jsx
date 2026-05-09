@@ -102,22 +102,24 @@ export default function MvpScanPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold text-white">Buyer QR Scanner</h1>
+    <main className="min-h-screen min-w-0 bg-slate-950 px-4 py-8 pb-24 text-slate-100 sm:pb-8">
+      <div className="mx-auto max-w-5xl min-w-0 space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="min-w-0 text-xl font-bold text-white sm:text-2xl">Buyer QR Scanner</h1>
           <Link to="/marketplace" className="text-sm text-emerald-300 hover:text-emerald-200">
             Marketplace
           </Link>
         </div>
 
         <section className="grid gap-5 lg:grid-cols-[1.1fr,1fr]">
-          <div className="glass rounded-2xl p-4">
+          <div className="glass max-w-full overflow-hidden rounded-2xl p-4">
             <p className="mb-3 inline-flex items-center gap-2 text-sm text-slate-300">
-              <Camera className="h-4 w-4 text-emerald-300" />
+              <Camera className="h-4 w-4 shrink-0 text-emerald-300" />
               Camera Scanner
             </p>
-            <Scanner onScan={onScan} constraints={{ facingMode: "environment" }} formats={["qr_code"]} />
+            <div className="max-h-[min(420px,65vh)] w-full overflow-hidden [&_video]:h-auto [&_video]:max-h-[min(420px,65vh)] [&_video]:w-full [&_video]:object-cover">
+              <Scanner onScan={onScan} constraints={{ facingMode: "environment" }} formats={["qr_code"]} />
+            </div>
           </div>
 
           <div className="glass rounded-2xl p-4 space-y-3">
@@ -209,7 +211,7 @@ export default function MvpScanPage() {
                 </p>
                 <p className="mt-1">Wallet verified: <span className="text-white">{solanaProof?.wallet ? "Yes" : "No"}</span></p>
                 <p className="mt-1">Timestamp verified: <span className="text-white">{solanaProof?.timestampIso ? "Yes" : "No"}</span></p>
-                <p className="mt-1">Farmer wallet: <span className="font-mono text-white">{product.walletAddress}</span></p>
+                <p className="mt-1 break-words">Farmer wallet:{" "}<span className="break-all font-mono text-white">{product.walletAddress}</span></p>
                 {solanaProof?.timestampIso ? <p className="mt-1">Blockchain timestamp: <span className="text-white">{new Date(solanaProof.timestampIso).toLocaleString()}</span></p> : null}
                 {product.blockchainExplorerUrl ? (
                   <a href={product.blockchainExplorerUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-cyan-200 hover:text-cyan-100">

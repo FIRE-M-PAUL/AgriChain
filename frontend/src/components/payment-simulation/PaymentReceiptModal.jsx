@@ -11,7 +11,7 @@ export default function PaymentReceiptModal({ receipt, onClose }) {
   if (!receipt) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center p-4 sm:items-center">
+    <div className="fixed inset-0 z-[120] flex items-end justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:items-center">
       <button
         type="button"
         className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
@@ -25,7 +25,7 @@ export default function PaymentReceiptModal({ receipt, onClose }) {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 16 }}
         transition={{ type: "spring", stiffness: 320, damping: 28 }}
-        className={`relative z-10 w-full max-w-md rounded-2xl border p-5 ${shell}`}
+        className={`relative z-10 max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl border p-5 ${shell}`}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">

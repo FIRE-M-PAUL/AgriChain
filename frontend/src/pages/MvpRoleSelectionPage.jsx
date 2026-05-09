@@ -18,11 +18,12 @@ export default function MvpRoleSelectionPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100">
+    <main className="min-h-screen min-w-0 bg-slate-950 px-4 py-10 pb-24 text-slate-100 sm:pb-10">
       <div className="mx-auto max-w-3xl space-y-6">
         <h1 className="text-center text-3xl font-bold text-white">Choose Your Role</h1>
         <p className="text-center text-sm text-slate-300">
-          Wallet identity: <span className="font-mono">{wallet}</span>
+          Wallet identity:{" "}
+          <span className="inline-block max-w-full break-all font-mono text-xs sm:text-sm">{wallet}</span>
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <button

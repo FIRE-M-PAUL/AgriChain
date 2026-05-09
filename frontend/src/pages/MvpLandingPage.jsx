@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
-import { Mic, QrCode, Sprout, Store, Wallet } from "lucide-react";
+import { Menu, Mic, QrCode, Sprout, Store, Wallet, X } from "lucide-react";
 import PhantomConnectButton from "../components/PhantomConnectButton";
 import { setStoredWalletAddress } from "../services/walletSession";
 
@@ -27,11 +27,14 @@ const fadeUp = {
 export default function MvpLandingPage() {
   const navigate = useNavigate();
   const [walletAddress, setWalletAddress] = useState("");
-  const [phantomInstalled, setPhantomInstalled] = useState(typeof window !== "undefined" ? Boolean(window.solana?.isPhantom) : true);
+  /** Shown only after the user taps Connect and Phantom is not available (not on first paint). */
+  const [showPhantomInstallPrompt, setShowPhantomInstallPrompt] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const connectPhantom = async () => {
+    setMobileMenuOpen(false);
     if (typeof window === "undefined" || !window.solana?.isPhantom) {
-      setPhantomInstalled(false);
+      setShowPhantomInstallPrompt(true);
       toast.error("Phantom wallet not found. Install Phantom to continue.");
       return;
     }
@@ -65,13 +68,64 @@ export default function MvpLandingPage() {
         />
 
         <div className="relative z-10 flex flex-1 flex-col px-4 pt-6 md:px-8 md:pt-8">
-          <div className="flex w-full flex-col items-center gap-4 text-center md:items-end md:text-right">
+          <div className="relative flex w-full flex-col items-center gap-4 text-center md:items-end md:text-right">
+            {/* Mobile: menu toggle + slide-down panel */}
+            <div className="relative ml-auto md:hidden">
+              <button
+                type="button"
+                className="relative z-[60] inline-flex items-center justify-center rounded-xl border border-white/20 bg-black/35 p-2.5 text-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm transition hover:bg-black/45 active:scale-[0.97]"
+                aria-expanded={mobileMenuOpen}
+                aria-controls="landing-actions-menu"
+                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                onClick={() => setMobileMenuOpen((open) => !open)}
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" aria-hidden /> : <Menu className="h-6 w-6" aria-hidden />}
+              </button>
+
+              {mobileMenuOpen ? (
+                <>
+                  <button
+                    type="button"
+                    className="fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-[2px]"
+                    aria-label="Close menu"
+                    onClick={() => setMobileMenuOpen(false)}
+                  />
+                  <motion.nav
+                    id="landing-actions-menu"
+                    role="navigation"
+                    aria-label="Wallet and marketplace"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 top-[calc(100%+0.5rem)] z-50 flex w-[min(100vw-2rem,18rem)] flex-col gap-2 rounded-2xl border border-white/15 bg-black/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-xl backdrop-blur-md"
+                  >
+                    <PhantomConnectButton
+                      walletAddress={walletAddress}
+                      onConnect={connectPhantom}
+                      className="group relative isolate w-full justify-center whitespace-normal rounded-xl border border-emerald-300/35 bg-gradient-to-r from-[#0f5132] via-[#166534] to-[#3f6212] px-4 py-3 text-sm font-semibold !text-white shadow-[0_10px_28px_rgba(22,101,52,0.42),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:!text-white hover:shadow-[0_14px_38px_rgba(232,197,71,0.24),0_10px_28px_rgba(22,101,52,0.45)] hover:brightness-110 active:scale-[0.98]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        navigate("/marketplace");
+                      }}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-white/35 bg-slate-950/90 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:border-amber-200/60 hover:bg-slate-900 active:scale-[0.98]"
+                    >
+                      <Store className="h-4 w-4 shrink-0 text-amber-200/90" aria-hidden />
+                      Open Marketplace
+                    </button>
+                  </motion.nav>
+                </>
+              ) : null}
+            </div>
+
             <motion.div
               custom={0}
               variants={fadeUp}
               initial="hidden"
               animate="show"
-             className="flex w-auto max-w-full flex-row items-center justify-end gap-2 rounded-2xl border border-white/15 bg-black/20 p-2 backdrop-blur-sm"
+              className="hidden w-full max-w-full flex-col items-stretch justify-center gap-2 rounded-2xl border border-white/15 bg-black/20 p-2 backdrop-blur-sm md:flex md:w-auto md:flex-row md:items-center md:justify-end"
             >
               <PhantomConnectButton
                 walletAddress={walletAddress}
@@ -81,14 +135,14 @@ export default function MvpLandingPage() {
               <button
                 type="button"
                 onClick={() => navigate("/marketplace")}
-                className="inline-flex whitespace-nowrap items-center justify-center gap-1.5 rounded-xl border-2 border-white/35 bg-slate-950/90 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:border-amber-200/60 hover:bg-slate-900 active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border-2 border-white/35 bg-slate-950/90 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:border-amber-200/60 hover:bg-slate-900 active:scale-[0.98]"
               >
                 <Store className="h-4 w-4 text-amber-200/90" aria-hidden />
                 Open Marketplace
               </button>
             </motion.div>
 
-            {!phantomInstalled && (
+            {showPhantomInstallPrompt && (
               <motion.div custom={1} variants={fadeUp} initial="hidden" animate="show" className="w-full max-w-sm space-y-2 md:max-w-md">
                 <a
                   href="https://phantom.app/"

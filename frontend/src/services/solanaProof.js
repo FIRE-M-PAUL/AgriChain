@@ -1,8 +1,30 @@
-import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
+import {
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+} from "@solana/web3.js";
+import {
+  SOLANA_PROGRAM_ID_STR,
+  decodeProofAccountProductId,
+  explorerTxUrl,
+  lamportsToSol,
+  rpcGetLatestBlockhash,
+  rpcGetProgramProofAccounts,
+  rpcGetSignaturesForAddress,
+  rpcGetTransaction,
+  rpcPollSignatureConfirmed,
+  rpcRequestAirdrop,
+  rpcSendRawTransaction,
+  rpcSimulateTransaction,
+  rpcGetBalanceLamports,
+  rpcGetAccountInfo,
+  showDevnetFaucetUi,
+  summarizeSimulationFailure,
+  isDevnetLikeCluster,
+} from "./solanaRpc";
 
-const SOLANA_RPC_URL = import.meta.env.VITE_SOLANA_RPC_URL || "https://api.devnet.solana.com";
-const SOLANA_PROGRAM_ID = import.meta.env.VITE_SOLANA_PROGRAM_ID || "";
-const SOLANA_EXPLORER_BASE = import.meta.env.VITE_SOLANA_EXPLORER_BASE_URL || "https://explorer.solana.com";
+export { getSolanaConnection } from "./solanaRpc";
 
 function getPhantomProvider() {
   if (typeof window === "undefined") return null;
@@ -45,9 +67,42 @@ async function getInstructionDiscriminator(ixName) {
 }
 
 async function deriveProofPda(productId) {
-  const programId = new PublicKey(SOLANA_PROGRAM_ID);
-  const [pda] = PublicKey.findProgramAddressSync([textEncoder.encode("proof"), textEncoder.encode(productId)], programId);
+  const programId = new PublicKey(SOLANA_PROGRAM_ID_STR);
+  const [pda] = PublicKey.findProgramAddressSync(
+    [textEncoder.encode("proof"), textEncoder.encode(productId)],
+    programId
+  );
   return pda;
+}
+
+async function signAndSubmitTransaction(transaction) {
+  const provider = getPhantomProvider();
+  if (!provider) throw new Error("Phantom wallet not available.");
+
+  let signature;
+
+  if (typeof provider.signTransaction === "function") {
+    const signed = await provider.signTransaction(transaction);
+    const raw = signed.serialize();
+    signature = await rpcSendRawTransaction(raw);
+  } else {
+    const out = await provider.signAndSendTransaction(transaction);
+    signature = typeof out === "string" ? out : out?.signature;
+  }
+
+  if (!signature) throw new Error("Missing transaction signature.");
+
+  const poll = await rpcPollSignatureConfirmed(signature);
+  if (!poll.ok) {
+    throw new Error(poll.err ? String(JSON.stringify(poll.err)) : "Transaction failed on-chain.");
+  }
+
+  const meta = await rpcGetTransaction(signature);
+  return {
+    signature,
+    slot: meta?.slot,
+    blockTime: meta?.blockTime != null ? meta.blockTime : null,
+  };
 }
 
 export async function buildCropHash({ productId, cropName, quantity, walletAddress }) {
@@ -62,17 +117,26 @@ export async function buildCropHash({ productId, cropName, quantity, walletAddre
 }
 
 export async function recordSolanaProof({ productId, walletAddress, cropHashBytes }) {
+  if (!SOLANA_PROGRAM_ID_STR || !walletAddress || !productId || !cropHashBytes) {
+    return {
+      signature: "",
+      timestamp: "",
+      proofPda: "",
+      explorerUrl: "",
+      error: !SOLANA_PROGRAM_ID_STR ? "Program ID not configured." : "Missing proof parameters.",
+    };
+  }
+
   const provider = getPhantomProvider();
-  if (!provider || !walletAddress || !productId || !SOLANA_PROGRAM_ID || !cropHashBytes) {
-    return { signature: "", timestamp: "", proofPda: "", explorerUrl: "" };
+  if (!provider) {
+    return { signature: "", timestamp: "", proofPda: "", explorerUrl: "", error: "Phantom not connected." };
   }
 
   try {
-    const connection = new Connection(SOLANA_RPC_URL, "confirmed");
-    const programId = new PublicKey(SOLANA_PROGRAM_ID);
+    const programId = new PublicKey(SOLANA_PROGRAM_ID_STR);
     const fromPubkey = new PublicKey(walletAddress);
     const proofPda = await deriveProofPda(productId);
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+    const { blockhash, lastValidBlockHeight } = await rpcGetLatestBlockhash("confirmed");
     const ixDiscriminator = await getInstructionDiscriminator("record_product_proof");
     const ixData = concatUint8Arrays(ixDiscriminator, encodeAnchorString(productId), cropHashBytes);
 
@@ -92,37 +156,56 @@ export async function recordSolanaProof({ productId, walletAddress, cropHashByte
       })
     );
 
-    const signature = await provider.signAndSendTransaction(transaction);
-    const txSignature = typeof signature === "string" ? signature : signature?.signature || "";
+    const sim = await rpcSimulateTransaction(transaction);
+    if (sim.value.err) {
+      return {
+        signature: "",
+        timestamp: "",
+        proofPda: proofPda.toBase58(),
+        explorerUrl: "",
+        error: summarizeSimulationFailure(sim),
+      };
+    }
+
+    const { signature } = await signAndSubmitTransaction(transaction);
+    const iso = new Date().toISOString();
 
     return {
-      signature: txSignature,
-      timestamp: new Date().toISOString(),
+      signature,
+      timestamp: iso,
       proofPda: proofPda.toBase58(),
-      explorerUrl: txSignature
-        ? `${SOLANA_EXPLORER_BASE}/tx/${txSignature}?cluster=devnet`
-        : "",
+      explorerUrl: explorerTxUrl(signature),
     };
-  } catch {
-    return { signature: "", timestamp: "", proofPda: "", explorerUrl: "" };
+  } catch (e) {
+    return {
+      signature: "",
+      timestamp: "",
+      proofPda: "",
+      explorerUrl: "",
+      error: e?.message || "Solana proof transaction failed.",
+    };
   }
 }
 
 export async function verifySolanaProof({ productId, expectedCropHashHex }) {
-  if (!SOLANA_PROGRAM_ID || !productId) {
+  if (!SOLANA_PROGRAM_ID_STR || !productId) {
     return { verified: false, proofExists: false, reason: "Program not configured." };
   }
 
   try {
-    const connection = new Connection(SOLANA_RPC_URL, "confirmed");
     const proofPda = await deriveProofPda(productId);
-    const accountInfo = await connection.getAccountInfo(proofPda, "confirmed");
+    const accountInfo = await rpcGetAccountInfo(proofPda.toBase58(), "confirmed");
     if (!accountInfo?.data) {
-      return { verified: false, proofExists: false, reason: "Proof account not found.", proofPda: proofPda.toBase58() };
+      return {
+        verified: false,
+        proofExists: false,
+        reason: "Proof account not found.",
+        proofPda: proofPda.toBase58(),
+      };
     }
 
     const data = new Uint8Array(accountInfo.data);
-    let offset = 8; // Anchor account discriminator
+    let offset = 8;
     const productIdLen = new DataView(data.buffer, data.byteOffset + offset, 4).getUint32(0, true);
     offset += 4 + productIdLen;
     const farmerWalletBytes = data.slice(offset, offset + 32);
@@ -153,18 +236,50 @@ export async function verifySolanaProof({ productId, expectedCropHashHex }) {
   }
 }
 
-export async function sendSolanaPayment({ buyerWallet, farmerWallet, lamports }) {
-  const provider = getPhantomProvider();
-  if (!provider || !buyerWallet || !farmerWallet || !lamports) {
-    return { signature: "", explorerUrl: "" };
-  }
-
+/** Optional: enrich listing proof tx from Supabase `blockchainSignature` (farmer record tx). */
+export async function fetchSettlementTransactionSummary(signature) {
+  if (!signature || String(signature).startsWith("sim_")) return null;
   try {
-    const connection = new Connection(SOLANA_RPC_URL, "confirmed");
+    const tx = await rpcGetTransaction(signature);
+    if (!tx) return { found: false };
+    return {
+      found: true,
+      slot: tx.slot,
+      blockTime: tx.blockTime,
+      err: tx.meta?.err ?? null,
+    };
+  } catch {
+    return { found: false };
+  }
+}
+
+const ESTIMATE_FEE_LAMPORTS = 10_000;
+
+export async function fetchWalletSolBalance(walletAddress) {
+  if (!walletAddress) return { lamports: 0, sol: 0 };
+  const lamports = await rpcGetBalanceLamports(walletAddress);
+  return { lamports, sol: lamportsToSol(lamports) };
+}
+
+/**
+ * Preflight transfer used at checkout (does not submit).
+ */
+export async function simulateBuyerToFarmerTransfer({ buyerWallet, farmerWallet, lamports }) {
+  if (!buyerWallet || !farmerWallet || !lamports) {
+    return { ok: false, error: "Missing payment parameters." };
+  }
+  try {
     const buyerPubkey = new PublicKey(buyerWallet);
     const farmerPubkey = new PublicKey(farmerWallet);
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+    const balance = await rpcGetBalanceLamports(buyerWallet);
+    if (balance < lamports + ESTIMATE_FEE_LAMPORTS) {
+      return {
+        ok: false,
+        error: `Insufficient SOL (need ~${lamportsToSol(lamports + ESTIMATE_FEE_LAMPORTS).toFixed(4)} SOL incl. fees; have ${lamportsToSol(balance).toFixed(4)} SOL).`,
+      };
+    }
 
+    const { blockhash, lastValidBlockHeight } = await rpcGetLatestBlockhash("confirmed");
     const transaction = new Transaction({
       feePayer: buyerPubkey,
       blockhash,
@@ -177,13 +292,113 @@ export async function sendSolanaPayment({ buyerWallet, farmerWallet, lamports })
       })
     );
 
-    const signature = await provider.signAndSendTransaction(transaction);
-    const txSignature = typeof signature === "string" ? signature : signature?.signature || "";
-    return {
-      signature: txSignature,
-      explorerUrl: txSignature ? `${SOLANA_EXPLORER_BASE}/tx/${txSignature}?cluster=devnet` : "",
-    };
-  } catch {
-    return { signature: "", explorerUrl: "" };
+    const sim = await rpcSimulateTransaction(transaction);
+    if (sim.value.err) {
+      return { ok: false, error: summarizeSimulationFailure(sim) };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Transfer simulation failed." };
   }
+}
+
+export async function sendSolanaPayment({ buyerWallet, farmerWallet, lamports }) {
+  if (!buyerWallet || !farmerWallet || !lamports) {
+    return { signature: "", explorerUrl: "", error: "Missing payment parameters." };
+  }
+
+  const provider = getPhantomProvider();
+  if (!provider) {
+    return { signature: "", explorerUrl: "", error: "Phantom wallet not connected in this browser." };
+  }
+
+  try {
+    const buyerPubkey = new PublicKey(buyerWallet);
+    const farmerPubkey = new PublicKey(farmerWallet);
+
+    const balance = await rpcGetBalanceLamports(buyerWallet);
+    if (balance < lamports + ESTIMATE_FEE_LAMPORTS) {
+      return {
+        signature: "",
+        explorerUrl: "",
+        error: `Insufficient SOL for this purchase (need ~${lamportsToSol(lamports + ESTIMATE_FEE_LAMPORTS).toFixed(4)} SOL incl. fees).`,
+      };
+    }
+
+    const { blockhash, lastValidBlockHeight } = await rpcGetLatestBlockhash("confirmed");
+    const transaction = new Transaction({
+      feePayer: buyerPubkey,
+      blockhash,
+      lastValidBlockHeight,
+    }).add(
+      SystemProgram.transfer({
+        fromPubkey: buyerPubkey,
+        toPubkey: farmerPubkey,
+        lamports,
+      })
+    );
+
+    const sim = await rpcSimulateTransaction(transaction);
+    if (sim.value.err) {
+      return {
+        signature: "",
+        explorerUrl: "",
+        error: summarizeSimulationFailure(sim),
+      };
+    }
+
+    const { signature, blockTime } = await signAndSubmitTransaction(transaction);
+
+    return {
+      signature,
+      explorerUrl: explorerTxUrl(signature),
+      confirmed: true,
+      blockTime: blockTime != null ? blockTime : undefined,
+    };
+  } catch (e) {
+    return {
+      signature: "",
+      explorerUrl: "",
+      error: e?.message || "Payment transaction failed.",
+    };
+  }
+}
+
+let proofIdsCache = { ids: null, ts: 0 };
+const PROOF_IDS_TTL_MS = 45_000;
+
+export async function fetchOnChainProofProductIds({ force = false } = {}) {
+  if (!SOLANA_PROGRAM_ID_STR) return new Set();
+  const now = Date.now();
+  if (!force && proofIdsCache.ids && now - proofIdsCache.ts < PROOF_IDS_TTL_MS) {
+    return proofIdsCache.ids;
+  }
+  try {
+    const accounts = await rpcGetProgramProofAccounts(SOLANA_PROGRAM_ID_STR);
+    const ids = new Set();
+    for (const { account } of accounts) {
+      const id = decodeProofAccountProductId(account.data);
+      if (id) ids.add(id);
+    }
+    proofIdsCache = { ids, ts: now };
+    return ids;
+  } catch {
+    return proofIdsCache.ids || new Set();
+  }
+}
+
+export async function fetchWalletRecentSignatures(walletAddress, limit = 15) {
+  if (!walletAddress) return [];
+  try {
+    return await rpcGetSignaturesForAddress(walletAddress, limit);
+  } catch {
+    return [];
+  }
+}
+
+export async function requestDevnetSolAirdrop(walletAddress, solAmount = 1) {
+  if (!showDevnetFaucetUi() || !isDevnetLikeCluster()) {
+    throw new Error("Devnet airdrop is not enabled for this deployment.");
+  }
+  return rpcRequestAirdrop(walletAddress, solAmount);
 }

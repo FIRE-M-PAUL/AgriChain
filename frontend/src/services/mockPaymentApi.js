@@ -9,8 +9,13 @@ const timings = {
   confirm: 2200,
 };
 
-function delay(ms) {
+export function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Solana checkout calls this so demo scenarios fail without minting fake signatures. */
+export async function gateScenarioFailure(scenario, messageMap) {
+  await maybeReject(scenario, messageMap);
 }
 
 function maybeReject(scenario, messageMap) {
@@ -67,28 +72,6 @@ export function validateZambiaMobile(phone) {
   const p = String(phone || "").replace(/\s/g, "");
   // Zambia local 0XXXXXXXXX (10 digits) or +260XXXXXXXXX
   return /^0[0-9]{9}$/.test(p) || /^\+260[0-9]{9}$/.test(p);
-}
-
-/**
- * Simulates Solana payment flow: connect → confirm → chain wait.
- * @param {{ amountSol: number, scenario: string }} params
- */
-export async function simulateSolanaPayment({ amountSol, scenario }) {
-  await delay(timings.fast);
-  await maybeReject(scenario, {
-    insufficientFunds: "Insufficient SOL in simulated wallet.",
-    invalidNumber: "Invalid transaction parameters.",
-    timeout: "Network timeout — Solana RPC unavailable (simulated).",
-    cancelled: "Transaction cancelled by user (simulated).",
-  });
-  await delay(timings.medium);
-  return {
-    id: `sol_${Date.now()}`,
-    method: "Solana",
-    amountSol,
-    signature: `sim_${Math.random().toString(36).slice(2, 14)}`,
-    confirmedAt: new Date().toISOString(),
-  };
 }
 
 /**

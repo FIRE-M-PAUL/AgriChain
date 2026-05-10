@@ -3,7 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { Camera, ImageUp, ShieldCheck, TriangleAlert } from "lucide-react";
 import { getProductById, isProductVerifiedForMarketplace } from "../services/mvpProducts";
-import { verifySolanaProof } from "../services/solanaProof";
+import { verifySolanaProof, fetchSettlementTransactionSummary } from "../services/solanaProof";
+import { explorerTxUrl } from "../services/solanaRpc";
 
 function getProductIdFromQr(raw = "") {
   try {
@@ -19,6 +20,7 @@ export default function MvpScanPage() {
   const [manualValue, setManualValue] = useState(() => params.get("id") || params.get("productId") || "");
   const [product, setProduct] = useState(null);
   const [solanaProof, setSolanaProof] = useState(null);
+  const [settlementTxMeta, setSettlementTxMeta] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -52,9 +54,15 @@ export default function MvpScanPage() {
       if (!item) {
         setProduct(null);
         setSolanaProof(null);
+        setSettlementTxMeta(null);
         setError("Product not found. Check QR code and try again.");
       } else {
         setProduct(item);
+        setSettlementTxMeta(null);
+        const sig = item.blockchainSignature;
+        if (sig && !String(sig).startsWith("sim_")) {
+          fetchSettlementTransactionSummary(sig).then(setSettlementTxMeta);
+        }
         const proof = await verifySolanaProof({
           productId: item.id,
           expectedCropHashHex: item.cropHash,
@@ -64,6 +72,7 @@ export default function MvpScanPage() {
     } catch {
       setProduct(null);
       setSolanaProof(null);
+      setSettlementTxMeta(null);
       setError("Could not fetch product record.");
     } finally {
       setLoading(false);
@@ -213,7 +222,45 @@ export default function MvpScanPage() {
                 <p className="mt-1">Timestamp verified: <span className="text-white">{solanaProof?.timestampIso ? "Yes" : "No"}</span></p>
                 <p className="mt-1 break-words">Farmer wallet:{" "}<span className="break-all font-mono text-white">{product.walletAddress}</span></p>
                 {solanaProof?.timestampIso ? <p className="mt-1">Blockchain timestamp: <span className="text-white">{new Date(solanaProof.timestampIso).toLocaleString()}</span></p> : null}
-                {product.blockchainExplorerUrl ? (
+                {product.blockchainSignature && !String(product.blockchainSignature).startsWith("sim_") ? (
+                  <div className="mt-2 rounded-lg border border-slate-600/80 bg-slate-900/40 p-3 text-xs text-slate-300">
+                    <p className="font-semibold text-slate-100">Settlement transaction (getTransaction)</p>
+                    <p className="mt-1 break-all font-mono text-[11px] text-slate-400">{product.blockchainSignature}</p>
+                    {settlementTxMeta?.found ? (
+                      <>
+                        <p className="mt-1">
+                          Slot: <span className="text-white">{settlementTxMeta.slot ?? "—"}</span>
+                        </p>
+                        <p className="mt-1">
+                          Block time:{" "}
+                          <span className="text-white">
+                            {settlementTxMeta.blockTime != null
+                              ? new Date(settlementTxMeta.blockTime * 1000).toLocaleString()
+                              : "—"}
+                          </span>
+                        </p>
+                        <p className="mt-1">
+                          RPC status:{" "}
+                          <span className={settlementTxMeta.err ? "text-rose-300" : "text-emerald-300"}>
+                            {settlementTxMeta.err ? "Error on ledger" : "Transaction Confirmed"}
+                          </span>
+                        </p>
+                      </>
+                    ) : settlementTxMeta && settlementTxMeta.found === false ? (
+                      <p className="mt-1 text-amber-300">Signature not indexed yet — retry shortly.</p>
+                    ) : (
+                      <p className="mt-1 text-slate-400">Loading chain metadata…</p>
+                    )}
+                    <a
+                      href={explorerTxUrl(product.blockchainSignature)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-block text-cyan-200 hover:text-cyan-100"
+                    >
+                      Open in Solana Explorer
+                    </a>
+                  </div>
+                ) : product.blockchainExplorerUrl ? (
                   <a href={product.blockchainExplorerUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-cyan-200 hover:text-cyan-100">
                     View Solana transaction
                   </a>

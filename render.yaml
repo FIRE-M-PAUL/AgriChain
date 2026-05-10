@@ -23,12 +23,14 @@ services:
         sync: false
       - key: VITE_FIREBASE_APP_ID
         sync: false
+      - key: VITE_SOLANA_NETWORK
+        value: devnet
       - key: VITE_SOLANA_RPC_URL
         value: https://api.devnet.solana.com
+      - key: VITE_SOLANA_EXPLORER
+        value: https://explorer.solana.com
       - key: VITE_SOLANA_PROGRAM_ID
         sync: false
-      - key: VITE_SOLANA_EXPLORER_BASE_URL
-        value: https://explorer.solana.com
       - key: VITE_ELEVENLABS_API_KEY
         sync: false
     routes:

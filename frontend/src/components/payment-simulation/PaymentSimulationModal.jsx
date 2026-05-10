@@ -7,6 +7,7 @@ import { MOCK_ERROR_SCENARIOS, PAYMENT_METHOD_IDS } from "./paymentConstants";
 import PaymentMethodSelector from "./PaymentMethodSelector";
 import CheckoutSolana from "./CheckoutSolana";
 import CheckoutCard from "./CheckoutCard";
+import { getStoredWalletAddress } from "../../services/walletSession";
 import CheckoutMobileMoney from "./CheckoutMobileMoney";
 import { useIsLightTheme } from "./useIsLightTheme";
 
@@ -41,6 +42,9 @@ export default function PaymentSimulationModal() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const amountSol = checkoutSession?.amountSol ?? 0;
+  const buyerWallet = getStoredWalletAddress();
+  const farmerWallet =
+    checkoutSession?.product?.farmerWallet || checkoutSession?.product?.walletAddress || "";
 
   const handleError = useCallback((msg) => {
     toast.error(msg || "Something went wrong.");
@@ -57,7 +61,11 @@ export default function PaymentSimulationModal() {
         quantity: session?.quantity,
       };
       pushHistory(enriched);
-      toast.success("Payment confirmed (simulated).");
+      toast.success(
+        receiptBase?.rpcPreflightOk
+          ? "Solana checkout validated — completing transfer…"
+          : "Payment confirmed (simulated)."
+      );
       closeCheckout();
       showReceipt(enriched);
       try {
@@ -173,6 +181,8 @@ export default function PaymentSimulationModal() {
                     scenario={mockScenario}
                     isLight={isLight}
                     disabled={busy}
+                    buyerWallet={buyerWallet}
+                    farmerWallet={farmerWallet}
                     onSuccess={handleSuccess}
                     onError={handleError}
                     onBusy={setBusy}

@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Mic, QrCode as QrCodeIcon, Download, Share2 } from "lucide-react";
+import { Droplets, Loader2, Mic, QrCode as QrCodeIcon, Download, Share2 } from "lucide-react";
 import { generateProductId, listProducts, saveProductRecord } from "../services/mvpProducts";
 import { getFarmerProfile, saveFarmerProfile } from "../services/mvpFarmers";
 import { startVoiceCapture } from "../services/voiceInput";
-import { buildCropHash, recordSolanaProof } from "../services/solanaProof";
+import {
+  buildCropHash,
+  recordSolanaProof,
+  fetchWalletSolBalance,
+  fetchWalletRecentSignatures,
+  requestDevnetSolAirdrop,
+} from "../services/solanaProof";
+import { SOLANA_PROGRAM_ID_STR, explorerTxUrl, showDevnetFaucetUi } from "../services/solanaRpc";
 import PhantomConnectButton from "../components/PhantomConnectButton";
 import { useAuth } from "../context/AuthContext";
 import { getStoredWalletAddress, setStoredWalletAddress } from "../services/walletSession";
@@ -47,6 +54,9 @@ export default function MvpFarmerPage() {
   });
   const [createdRecord, setCreatedRecord] = useState(null);
   const [farmerProducts, setFarmerProducts] = useState([]);
+  const [walletSolBalance, setWalletSolBalance] = useState(null);
+  const [airdropBusy, setAirdropBusy] = useState(false);
+  const [recentSignatures, setRecentSignatures] = useState([]);
   const nrcValid = isValidNrc(profileForm.nationalId);
   const showNrcError = nrcTouched && !nrcValid;
   const phoneValid = isValidPhoneTenDigits(profileForm.phoneNumber);
@@ -68,6 +78,28 @@ export default function MvpFarmerPage() {
       .then((items) => setFarmerProducts(items))
       .catch(() => setFarmerProducts([]));
   }, [walletAddress, createdRecord]);
+
+  useEffect(() => {
+    if (!walletAddress) {
+      setWalletSolBalance(null);
+      setRecentSignatures([]);
+      return undefined;
+    }
+    let cancelled = false;
+    fetchWalletSolBalance(walletAddress)
+      .then(({ sol }) => {
+        if (!cancelled) setWalletSolBalance(sol);
+      })
+      .catch(() => {
+        if (!cancelled) setWalletSolBalance(null);
+      });
+    fetchWalletRecentSignatures(walletAddress, 12).then((rows) => {
+      if (!cancelled) setRecentSignatures(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [walletAddress]);
 
   const connectWallet = async () => {
     const provider = getPhantomProvider();
@@ -193,6 +225,10 @@ export default function MvpFarmerPage() {
         walletAddress,
         cropHashBytes: cropHash.bytes,
       });
+      if (SOLANA_PROGRAM_ID_STR && !proof.signature) {
+        toast.error(proof.error || "Could not record crop proof on Solana.");
+        return;
+      }
       const payload = {
         id,
         cropName: cropName.trim(),
@@ -298,6 +334,59 @@ export default function MvpFarmerPage() {
         <section className="glass rounded-2xl p-5">
           <PhantomConnectButton walletAddress={walletAddress} onConnect={connectWallet} />
         </section>
+
+        {walletAddress ? (
+          <section className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-400/15 p-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Wallet balance</p>
+              <p className="font-mono text-lg text-emerald-300">
+                {walletSolBalance != null ? `${walletSolBalance.toFixed(4)} SOL` : "Loading…"}
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">Loaded via Solana RPC (getBalance)</p>
+            </div>
+            {showDevnetFaucetUi() ? (
+              <button
+                type="button"
+                disabled={airdropBusy}
+                onClick={async () => {
+                  setAirdropBusy(true);
+                  try {
+                    await requestDevnetSolAirdrop(walletAddress, 1);
+                    const { sol } = await fetchWalletSolBalance(walletAddress);
+                    setWalletSolBalance(sol);
+                    toast.success("Devnet SOL received.");
+                  } catch (err) {
+                    toast.error(err?.message || "Airdrop failed.");
+                  } finally {
+                    setAirdropBusy(false);
+                  }
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/35 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/15 disabled:opacity-50"
+              >
+                {airdropBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Droplets className="h-4 w-4" />}
+                Request Devnet SOL
+              </button>
+            ) : null}
+          </section>
+        ) : null}
+
+        {walletAddress && recentSignatures.length ? (
+          <section className="glass rounded-2xl border border-slate-700/80 p-4">
+            <h2 className="text-sm font-semibold text-white">Recent wallet signatures</h2>
+            <p className="mt-1 text-[11px] text-slate-400">From Solana RPC <span className="font-mono">getSignaturesForAddress</span></p>
+            <ul className="mt-2 space-y-1.5 text-xs">
+              {recentSignatures.map((row) => (
+                <li key={row.signature} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900/60 px-2 py-1.5 font-mono text-[11px] text-slate-300">
+                  <span className="min-w-0 flex-1 break-all">{row.signature.slice(0, 10)}…{row.signature.slice(-6)}</span>
+                  <span className={row.err ? "text-rose-400" : "text-emerald-400"}>{row.err ? "failed" : "ok"}</span>
+                  <a href={explorerTxUrl(row.signature)} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300">
+                    Explorer
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {!profile && walletAddress ? (
           <section className="glass rounded-2xl p-5">

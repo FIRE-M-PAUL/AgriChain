@@ -10,7 +10,12 @@ import {
 } from "../services/mvpProducts";
 import { listFarmerProfiles, subscribeToFarmerChanges } from "../services/mvpFarmers";
 import { getStoredWalletAddress } from "../services/walletSession";
-import { sendSolanaPayment } from "../services/solanaProof";
+import {
+  sendSolanaPayment,
+  fetchWalletSolBalance,
+  fetchOnChainProofProductIds,
+} from "../services/solanaProof";
+import { explorerTxUrl } from "../services/solanaRpc";
 import BrandLogo from "../components/BrandLogo";
 import { usePaymentSimulation } from "../context/PaymentSimulationContext";
 
@@ -63,6 +68,8 @@ export default function MvpMarketplacePage() {
   const [purchaseQuantity, setPurchaseQuantity] = useState(DEFAULT_BUY_QUANTITY);
   const buyerWallet = getStoredWalletAddress();
   const { openCheckout } = usePaymentSimulation();
+  const [buyerSolBalance, setBuyerSolBalance] = useState(null);
+  const [onChainProofIds, setOnChainProofIds] = useState(() => new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -88,6 +95,36 @@ export default function MvpMarketplacePage() {
       cancelled = true;
       unsubP();
       unsubF();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!buyerWallet) {
+      setBuyerSolBalance(null);
+      return undefined;
+    }
+    let cancelled = false;
+    fetchWalletSolBalance(buyerWallet).then(({ sol }) => {
+      if (!cancelled) setBuyerSolBalance(sol);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [buyerWallet]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchOnChainProofProductIds().then((set) => {
+      if (!cancelled) setOnChainProofIds(set);
+    });
+    const interval = setInterval(() => {
+      fetchOnChainProofProductIds({ force: true }).then((set) => {
+        if (!cancelled) setOnChainProofIds(set);
+      });
+    }, 90_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
     };
   }, []);
 
@@ -288,17 +325,21 @@ export default function MvpMarketplacePage() {
     const unitSol = getPriceInSol(product);
     const lamports = Math.max(1, Math.round(unitSol * safeQuantity * LAMPORTS_PER_SOL));
     const totalPaymentSol = unitSol * safeQuantity;
+    const toastId = `mvp-pay-${product.id}`;
     setPurchaseLoading(product.id);
     try {
+      toast.loading("Sending transaction — approve in Phantom if prompted…", { id: toastId });
       const payment = await sendSolanaPayment({
         buyerWallet,
         farmerWallet: product.farmerWallet,
         lamports,
       });
       if (!payment.signature) {
-        toast.error("Payment transaction failed or was cancelled.");
+        toast.error(payment.error || "Payment transaction failed or was cancelled.", { id: toastId });
         return;
       }
+
+      toast.loading("Transaction confirmed — recording purchase…", { id: toastId });
 
       await recordProductPurchase(product.id, {
         buyerWallet,
@@ -314,10 +355,14 @@ export default function MvpMarketplacePage() {
       const refreshed = await listProducts();
       setProducts(refreshed);
 
-      toast.success("Purchase proof recorded on Solana.");
+      const blockHint =
+        payment.blockTime != null
+          ? ` Block time: ${new Date(payment.blockTime * 1000).toLocaleString()}.`
+          : "";
+      toast.success(`Solana payment confirmed.${blockHint}`, { id: toastId });
       closePurchaseModal();
     } catch {
-      toast.error("Could not complete purchase.");
+      toast.error("Could not complete purchase.", { id: toastId });
     } finally {
       setPurchaseLoading("");
     }
@@ -372,15 +417,24 @@ export default function MvpMarketplacePage() {
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Auto-verified listings + optional Solana proof
                 </span>
-                <p className="flex items-center justify-center gap-2 text-xs text-slate-300">
+                <p className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-300">
                   <Wallet className="h-4 w-4 text-violet-300" />
-                  Wallet: {shortenWallet(buyerWallet)}
+                  <span>Wallet: {shortenWallet(buyerWallet)}</span>
+                  {buyerWallet && buyerSolBalance != null ? (
+                    <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-emerald-200">
+                      Balance {buyerSolBalance.toFixed(4)} SOL
+                    </span>
+                  ) : null}
                 </p>
               </div>
             </div>
             {!buyerWallet ? (
               <p className="rounded-xl border border-violet-300/30 bg-violet-500/10 px-3 py-2 text-sm text-violet-200">
                 Connect Phantom Wallet to purchase products.
+              </p>
+            ) : buyerSolBalance != null && buyerSolBalance < PRICE_PER_UNIT_SOL ? (
+              <p className="rounded-xl border border-amber-300/35 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                Low SOL balance — fund your wallet (devnet: use “Request Devnet SOL” in checkout).
               </p>
             ) : null}
           </div>
@@ -418,6 +472,16 @@ export default function MvpMarketplacePage() {
                     Quantity: {purchase.quantityPurchased || 0} {purchase.unitType}
                   </p>
                   <p>Payment: {Number(purchase.totalPaymentSol || 0).toFixed(4)} SOL</p>
+                  {purchase.signature && !String(purchase.signature).startsWith("sim_") ? (
+                    <a
+                      href={explorerTxUrl(purchase.signature)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-[11px] text-violet-300 hover:text-violet-200"
+                    >
+                      Blockchain proof (explorer)
+                    </a>
+                  ) : null}
                 </div>
               ))}
               {!buyerPurchaseHistory.length ? <p className="text-xs text-slate-400">No purchases yet.</p> : null}
@@ -580,7 +644,8 @@ export default function MvpMarketplacePage() {
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {sortedProducts.map((product) => {
                 const isVerified = isProductVerifiedForMarketplace(product);
-                const chainBacked = Boolean(product.blockchainSignature);
+                const proofAccountListed = onChainProofIds.has(product.id);
+                const chainBacked = Boolean(product.blockchainSignature) || proofAccountListed;
                 const priceInSol = getPriceInSol(product);
                 const quantityAvailable = getQuantityAvailable(product);
                 const unitType = product.unitType || "units";
@@ -621,10 +686,14 @@ export default function MvpMarketplacePage() {
                       </p>
                       <p className="text-xs text-slate-400">Harvest date: {harvestDate ? new Date(harvestDate).toLocaleDateString() : "Not set"}</p>
                       <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-2">
-                        <p className="flex items-center gap-1 text-xs font-semibold text-emerald-300">
+                        <p className="flex flex-wrap items-center gap-1 text-xs font-semibold text-emerald-300">
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           {chainBacked
-                            ? "Solana verified"
+                            ? product.blockchainSignature
+                              ? "Solana verified · settlement TX"
+                              : proofAccountListed
+                                ? "Blockchain proof available · program account"
+                                : "Solana verified"
                             : isVerified
                               ? "System verified"
                               : "Pending verification"}
